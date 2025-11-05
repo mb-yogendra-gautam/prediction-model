@@ -1,0 +1,109 @@
+# Model Training Configuration
+
+model:
+  version: "1.0.0"
+  output_dir: "data/models/"
+  seed: 42
+
+data:
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+  target_columns:
+    - revenue_month_1
+    - revenue_month_2
+    - revenue_month_3
+    - member_count_month_3
+    - retention_rate_month_3
+
+models:
+  xgboost:
+    n_estimators: 300
+    max_depth: 5
+    learning_rate: 0.05
+    subsample: 0.8
+    colsample_bytree: 0.8
+    min_child_weight: 1
+    gamma: 0
+    reg_alpha: 0
+    reg_lambda: 1
+    early_stopping_rounds: 20
+    verbose: false
+
+  lightgbm:
+    n_estimators: 300
+    max_depth: 5
+    learning_rate: 0.05
+    subsample: 0.8
+    colsample_bytree: 0.8
+    min_child_samples: 20
+    reg_alpha: 0
+    reg_lambda: 1
+    early_stopping_rounds: 20
+    verbose: -1
+
+  random_forest:
+    n_estimators: 200
+    max_depth: 10
+    min_samples_split: 5
+    min_samples_leaf: 2
+    max_features: "sqrt"
+    bootstrap: true
+    oob_score: false
+
+ensemble:
+  strategy: "weighted_average"
+  weight_calculation: "inverse_rmse"
+
+evaluation:
+  metrics:
+    - rmse
+    - mae
+    - mape
+    - r2
+    - directional_accuracy
+  business_metrics:
+    - within_5_percent
+    - within_10_percent
+    - forecast_accuracy
+  confidence_interval: 95
+
+mlflow:
+  tracking_uri: "http://localhost:5000"
+  experiment_name: "studio_revenue_predictor"
+  log_models: true
+  log_params: true
+  log_metrics: true
+  log_artifacts: true
+
+hyperparameter_tuning:
+  enabled: false
+  method: "random_search"
+  n_iterations: 50
+  cv_folds: 5
+  scoring: "neg_root_mean_squared_error"
+
+optimization:
+  inverse_prediction:
+    method: "SLSQP"
+    max_iterations: 1000
+    tolerance: 1e-6
+    constraints:
+      retention_rate:
+        min: 0.5
+        max: 1.0
+      avg_ticket_price:
+        min: 50
+        max: 500
+      class_attendance_rate:
+        min: 0.4
+        max: 1.0
+      new_members_monthly:
+        min: 0
+        max: 100
+      staff_utilization_rate:
+        min: 0.6
+        max: 1.0
+      upsell_rate:
+        min: 0.0
+        max: 0.5

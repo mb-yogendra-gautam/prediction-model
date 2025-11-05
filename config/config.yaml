@@ -1,0 +1,61 @@
+# Application Configuration
+
+app:
+  name: "Studio Revenue Simulator"
+  version: "1.0.0"
+  environment: "development"
+
+database:
+  url: "${DATABASE_URL}"
+  pool_size: 10
+  max_overflow: 20
+  echo: false
+
+redis:
+  url: "${REDIS_URL}"
+  ttl: 3600
+  max_connections: 10
+
+mlflow:
+  tracking_uri: "${MLFLOW_TRACKING_URI}"
+  experiment_name: "${MLFLOW_EXPERIMENT_NAME}"
+
+openai:
+  api_key: "${OPENAI_API_KEY}"
+  model: "gpt-4"
+  temperature: 0.7
+  max_tokens: 1000
+
+api:
+  host: "${API_HOST}"
+  port: ${API_PORT}
+  workers: ${API_WORKERS}
+  reload: ${API_RELOAD}
+  cors_origins:
+    - "http://localhost:3000"
+    - "http://localhost:8000"
+
+logging:
+  level: "${LOG_LEVEL}"
+  file: "${LOG_FILE}"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  rotation: "daily"
+  retention: 30
+
+model:
+  version: "${MODEL_VERSION}"
+  path: "${MODEL_PATH}"
+  scaler_path: "${FEATURE_SCALER_PATH}"
+  confidence_threshold: 0.7
+
+features:
+  n_features: 25
+  seasonal_encoding: "cyclical"
+  rolling_window: 3
+  lagged_features: true
+
+prediction:
+  default_projection_months: 3
+  max_projection_months: 12
+  cache_predictions: true
+  cache_ttl: 3600

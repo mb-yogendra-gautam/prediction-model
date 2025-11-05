@@ -1,0 +1,223 @@
+{
+  "model_version": "1.0.0",
+  "evaluation_timestamp": "2025-11-05T20:31:49.872900",
+  "metrics_by_dataset": {
+    "train": {
+      "Revenue Month 1": {
+        "RMSE": 766.52,
+        "MAE": 504.38,
+        "R2": 0.9058,
+        "MAPE": 2.1,
+        "Directional_Accuracy": 90.32,
+        "Mean_Error": 22.93,
+        "Std_Error": 766.18
+      },
+      "Revenue Month 2": {
+        "RMSE": 763.29,
+        "MAE": 487.28,
+        "R2": 0.907,
+        "MAPE": 2.02,
+        "Directional_Accuracy": 85.48,
+        "Mean_Error": -16.97,
+        "Std_Error": 763.1
+      },
+      "Revenue Month 3": {
+        "RMSE": 672.85,
+        "MAE": 418.56,
+        "R2": 0.9278,
+        "MAPE": 1.74,
+        "Directional_Accuracy": 90.32,
+        "Mean_Error": 15.04,
+        "Std_Error": 672.68
+      },
+      "Members Month 3": {
+        "RMSE": 4.31,
+        "MAE": 3.3,
+        "R2": 0.4089,
+        "MAPE": 3.08,
+        "Directional_Accuracy": null,
+        "Mean_Error": 0.07,
+        "Std_Error": 4.31
+      },
+      "Retention Month 3": {
+        "RMSE": 0.03,
+        "MAE": 0.02,
+        "R2": 0.5848,
+        "MAPE": 3.0,
+        "Directional_Accuracy": null,
+        "Mean_Error": -0.0,
+        "Std_Error": 0.03
+      }
+    },
+    "validation": {
+      "Revenue Month 1": {
+        "RMSE": 1655.29,
+        "MAE": 1135.77,
+        "R2": -0.6805,
+        "MAPE": 3.91,
+        "Directional_Accuracy": 28.57,
+        "Mean_Error": -982.22,
+        "Std_Error": 1332.38
+      },
+      "Revenue Month 2": {
+        "RMSE": 1311.28,
+        "MAE": 896.06,
+        "R2": -0.2046,
+        "MAPE": 3.1,
+        "Directional_Accuracy": 71.43,
+        "Mean_Error": -620.26,
+        "Std_Error": 1155.3
+      },
+      "Revenue Month 3": {
+        "RMSE": 1441.57,
+        "MAE": 940.8,
+        "R2": -1.8866,
+        "MAPE": 3.2,
+        "Directional_Accuracy": 42.86,
+        "Mean_Error": -895.66,
+        "Std_Error": 1129.56
+      },
+      "Members Month 3": {
+        "RMSE": 4.58,
+        "MAE": 4.0,
+        "R2": -3.6625,
+        "MAPE": 3.93,
+        "Directional_Accuracy": null,
+        "Mean_Error": 3.5,
+        "Std_Error": 2.95
+      },
+      "Retention Month 3": {
+        "RMSE": 0.02,
+        "MAE": 0.01,
+        "R2": -0.3156,
+        "MAPE": 1.97,
+        "Directional_Accuracy": null,
+        "Mean_Error": -0.01,
+        "Std_Error": 0.01
+      }
+    },
+    "test": {
+      "Revenue Month 1": {
+        "RMSE": 1857.11,
+        "MAE": 1275.23,
+        "R2": -1.0964,
+        "MAPE": 4.25,
+        "Directional_Accuracy": 37.5,
+        "Mean_Error": -1253.69,
+        "Std_Error": 1370.09
+      },
+      "Revenue Month 2": {
+        "RMSE": 2141.78,
+        "MAE": 1479.07,
+        "R2": -1.3096,
+        "MAPE": 4.86,
+        "Directional_Accuracy": 62.5,
+        "Mean_Error": -1478.25,
+        "Std_Error": 1549.84
+      },
+      "Revenue Month 3": {
+        "RMSE": 2468.42,
+        "MAE": 1890.97,
+        "R2": -1.8237,
+        "MAPE": 6.19,
+        "Directional_Accuracy": 37.5,
+        "Mean_Error": -1890.97,
+        "Std_Error": 1586.6
+      },
+      "Members Month 3": {
+        "RMSE": 6.85,
+        "MAE": 6.48,
+        "R2": -2.0273,
+        "MAPE": 6.4,
+        "Directional_Accuracy": null,
+        "Mean_Error": 5.38,
+        "Std_Error": 4.24
+      },
+      "Retention Month 3": {
+        "RMSE": 0.03,
+        "MAE": 0.02,
+        "R2": 0.4724,
+        "MAPE": 3.44,
+        "Directional_Accuracy": null,
+        "Mean_Error": -0.0,
+        "Std_Error": 0.03
+      }
+    }
+  },
+  "model_comparison": {
+    "xgboost": {
+      "RMSE": 1857.98,
+      "MAE": 1093.8,
+      "R2": 0.9831
+    },
+    "lightgbm": {
+      "RMSE": 1640.5,
+      "MAE": 970.0,
+      "R2": 0.9868
+    },
+    "random_forest": {
+      "RMSE": 1668.26,
+      "MAE": 946.92,
+      "R2": 0.9863
+    }
+  },
+  "ensemble_weights": {
+    "xgboost": 0.3224346073324623,
+    "lightgbm": 0.33576015039030394,
+    "random_forest": 0.34180524227723363
+  },
+  "confidence_interval_coverage": 33.33,
+  "feature_count": 41,
+  "top_10_features": [
+    {
+      "Feature": "revenue_momentum",
+      "Importance": 0.16609999537467957,
+      "Rank": 1
+    },
+    {
+      "Feature": "estimated_ltv",
+      "Importance": 0.10869999974966049,
+      "Rank": 2
+    },
+    {
+      "Feature": "membership_revenue",
+      "Importance": 0.10779999941587448,
+      "Rank": 3
+    },
+    {
+      "Feature": "retention_x_ticket",
+      "Importance": 0.10689999908208847,
+      "Rank": 4
+    },
+    {
+      "Feature": "avg_ticket_price",
+      "Importance": 0.08910000324249268,
+      "Rank": 5
+    },
+    {
+      "Feature": "mom_member_growth",
+      "Importance": 0.061900001019239426,
+      "Rank": 6
+    },
+    {
+      "Feature": "total_revenue",
+      "Importance": 0.056299999356269836,
+      "Rank": 7
+    },
+    {
+      "Feature": "3m_avg_attendance",
+      "Importance": 0.03959999978542328,
+      "Rank": 8
+    },
+    {
+      "Feature": "prev_month_revenue",
+      "Importance": 0.039500001817941666,
+      "Rank": 9
+    },
+    {
+      "Feature": "3m_avg_revenue",
+      "Importance": 0.03189999982714653,
+      "Rank": 10
+    }
+  ]
+}
