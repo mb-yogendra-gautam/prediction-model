@@ -1,0 +1,142 @@
+{
+  "cv_results": {
+    "ridge": {
+      "r2_mean": 0.9987579562786267,
+      "r2_std": 0.00022202126070810222,
+      "rmse_mean": 436.29055059698794,
+      "rmse_std": 43.59088342820797
+    },
+    "elastic_net": {
+      "r2_mean": 0.994649202362232,
+      "r2_std": 0.0034983288964969576,
+      "rmse_mean": 908.7962578740851,
+      "rmse_std": 400.3757704652021
+    },
+    "gbm": {
+      "r2_mean": 0.9932505127230342,
+      "r2_std": 0.008717166734653418,
+      "rmse_mean": 936.8346557562242,
+      "rmse_std": 722.2911324098255
+    }
+  },
+  "test_results": {
+    "ridge": {
+      "metrics_by_target": {
+        "Revenue Month 1": {
+          "RMSE": 680.29,
+          "MAE": 504.65,
+          "R2": 0.9966,
+          "MAPE": 1.86
+        },
+        "Revenue Month 2": {
+          "RMSE": 742.24,
+          "MAE": 537.12,
+          "R2": 0.9961,
+          "MAPE": 1.88
+        },
+        "Revenue Month 3": {
+          "RMSE": 646.46,
+          "MAE": 500.26,
+          "R2": 0.9972,
+          "MAPE": 1.82
+        },
+        "Members Month 3": {
+          "RMSE": 5.24,
+          "MAE": 3.99,
+          "R2": 0.9923,
+          "MAPE": 2.09
+        },
+        "Retention Month 3": {
+          "RMSE": 0.01,
+          "MAE": 0.01,
+          "R2": 0.9579,
+          "MAPE": 0.95
+        }
+      },
+      "overall_rmse": 535.1,
+      "overall_r2": 0.999,
+      "overall_mae": 309.21
+    },
+    "elastic_net": {
+      "metrics_by_target": {
+        "Revenue Month 1": {
+          "RMSE": 1535.62,
+          "MAE": 1083.93,
+          "R2": 0.9826,
+          "MAPE": 3.6
+        },
+        "Revenue Month 2": {
+          "RMSE": 1527.2,
+          "MAE": 1040.48,
+          "R2": 0.9833,
+          "MAPE": 3.54
+        },
+        "Revenue Month 3": {
+          "RMSE": 1611.47,
+          "MAE": 1178.56,
+          "R2": 0.9826,
+          "MAPE": 3.95
+        },
+        "Members Month 3": {
+          "RMSE": 12.05,
+          "MAE": 10.34,
+          "R2": 0.9591,
+          "MAPE": 6.23
+        },
+        "Retention Month 3": {
+          "RMSE": 0.04,
+          "MAE": 0.03,
+          "R2": -0.0032,
+          "MAPE": 4.9
+        }
+      },
+      "overall_rmse": 1207.26,
+      "overall_r2": 0.9948,
+      "overall_mae": 662.67
+    },
+    "gbm": {
+      "metrics_by_target": {
+        "Revenue Month 1": {
+          "RMSE": 1965.5,
+          "MAE": 1104.49,
+          "R2": 0.9715,
+          "MAPE": 4.51
+        },
+        "Revenue Month 2": {
+          "RMSE": 2135.51,
+          "MAE": 1232.25,
+          "R2": 0.9673,
+          "MAPE": 5.01
+        },
+        "Revenue Month 3": {
+          "RMSE": 2139.0,
+          "MAE": 1253.65,
+          "R2": 0.9693,
+          "MAPE": 5.1
+        },
+        "Members Month 3": {
+          "RMSE": 12.21,
+          "MAE": 7.68,
+          "R2": 0.958,
+          "MAPE": 4.03
+        },
+        "Retention Month 3": {
+          "RMSE": 0.02,
+          "MAE": 0.02,
+          "R2": 0.7267,
+          "MAPE": 2.46
+        }
+      },
+      "overall_rmse": 1612.39,
+      "overall_r2": 0.9907,
+      "overall_mae": 719.62
+    }
+  },
+  "best_model": "ridge",
+  "timestamp": "2025-11-05T23:37:57.323951",
+  "phase": "Phase 3 - Multi-Studio Data",
+  "training_samples": 732,
+  "test_samples": 84,
+  "n_studios_train": 12,
+  "n_studios_test": 12
+}

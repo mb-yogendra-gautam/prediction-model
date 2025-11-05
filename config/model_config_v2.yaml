@@ -1,0 +1,144 @@
+# Improved Model Configuration - Version 2.0
+# Optimized for small dataset (80 samples)
+
+model:
+  version: "2.0.0"
+  output_dir: "data/models/"
+  seed: 42
+
+data:
+  # Use more for training with small dataset
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  target_columns:
+    - revenue_month_1
+    - revenue_month_2
+    - revenue_month_3
+    - member_count_month_3
+    - retention_rate_month_3
+
+# Regularization strategy for small dataset
+models:
+  # OPTION 1: Single regularized model (RECOMMENDED for small data)
+  ridge:
+    enabled: true
+    alpha: 10.0  # Strong regularization
+    
+  lasso:
+    enabled: true
+    alpha: 1.0
+    
+  elastic_net:
+    enabled: true
+    alpha: 1.0
+    l1_ratio: 0.5
+  
+  # OPTION 2: Simplified tree models
+  xgboost:
+    enabled: false  # Disable for now - too complex
+    n_estimators: 50  # Reduced from 300
+    max_depth: 2      # Reduced from 5
+    learning_rate: 0.1
+    subsample: 0.7
+    colsample_bytree: 0.7
+    min_child_weight: 5  # Increased regularization
+    gamma: 1.0           # Increased regularization
+    reg_alpha: 1.0       # L1 regularization
+    reg_lambda: 5.0      # L2 regularization
+    early_stopping_rounds: 10
+    verbose: false
+
+  lightgbm:
+    enabled: false  # Disable for now - too complex
+    n_estimators: 50
+    max_depth: 2
+    learning_rate: 0.1
+    subsample: 0.7
+    colsample_bytree: 0.7
+    min_child_samples: 10  # Increased
+    reg_alpha: 1.0
+    reg_lambda: 5.0
+    early_stopping_rounds: 10
+    verbose: -1
+
+  random_forest:
+    enabled: false  # Disable for now - too complex
+    n_estimators: 30  # Reduced from 200
+    max_depth: 3      # Reduced from 10
+    min_samples_split: 10  # Increased from 5
+    min_samples_leaf: 5    # Increased from 2
+    max_features: 0.3      # Use fewer features per tree
+    bootstrap: true
+    oob_score: true
+
+# Feature selection to reduce dimensionality
+feature_selection:
+  enabled: true
+  method: "select_k_best"  # or "recursive_elimination"
+  k_features: 15  # Reduce from 41 to 15 most important
+  score_func: "f_regression"
+
+ensemble:
+  strategy: "simple_average"  # Changed from weighted
+  weight_calculation: "equal"  # Simpler for small data
+
+evaluation:
+  metrics:
+    - rmse
+    - mae
+    - mape
+    - r2
+    - directional_accuracy
+  business_metrics:
+    - within_5_percent
+    - within_10_percent
+    - forecast_accuracy
+  confidence_interval: 95
+  cross_validation:
+    enabled: true
+    folds: 5  # Use CV for better evaluation
+    stratified: false
+
+# Hyperparameter tuning with caution
+hyperparameter_tuning:
+  enabled: false  # Disable to avoid overfitting
+  method: "random_search"
+  n_iterations: 20  # Reduced from 50
+  cv_folds: 3  # Reduced from 5
+  scoring: "neg_root_mean_squared_error"
+
+optimization:
+  inverse_prediction:
+    method: "SLSQP"
+    max_iterations: 1000
+    tolerance: 1e-6
+    constraints:
+      retention_rate:
+        min: 0.5
+        max: 1.0
+      avg_ticket_price:
+        min: 50
+        max: 500
+      class_attendance_rate:
+        min: 0.4
+        max: 1.0
+      new_members_monthly:
+        min: 0
+        max: 100
+      staff_utilization_rate:
+        min: 0.6
+        max: 1.0
+      upsell_rate:
+        min: 0.0
+        max: 0.5
+
+# Data augmentation for small datasets
+data_augmentation:
+  enabled: true
+  methods:
+    - noise_injection  # Add small Gaussian noise
+    - interpolation    # Create synthetic samples between existing ones
+  noise_level: 0.02
+  augmentation_factor: 1.5  # Increase dataset by 50%
+

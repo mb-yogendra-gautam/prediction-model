@@ -1,0 +1,176 @@
+{
+  "cv_results": {
+    "ridge": {
+      "r2_mean": 0.26293163202608444,
+      "r2_std": 0.055492393654458946,
+      "rmse_mean": 1031.2390326030495,
+      "rmse_std": 165.9304362225077
+    },
+    "lasso": {
+      "r2_mean": 0.0680330764436697,
+      "r2_std": 0.29991002361600977,
+      "rmse_mean": 1220.9355015995056,
+      "rmse_std": 185.46912268157794
+    },
+    "elastic_net": {
+      "r2_mean": 0.2277431867672819,
+      "r2_std": 0.08089723747616735,
+      "rmse_mean": 1037.2455774892262,
+      "rmse_std": 165.9446938621877
+    },
+    "gbm": {
+      "r2_mean": 0.18750898117601594,
+      "r2_std": 0.15056848571369422,
+      "rmse_mean": 1035.4179688193217,
+      "rmse_std": 160.70120566511594
+    }
+  },
+  "test_results": {
+    "ridge": {
+      "metrics_by_target": {
+        "Revenue Month 1": {
+          "RMSE": 1457.85,
+          "MAE": 1039.0,
+          "R2": -0.2919,
+          "MAPE": 3.48
+        },
+        "Revenue Month 2": {
+          "RMSE": 1366.32,
+          "MAE": 1050.75,
+          "R2": 0.0601,
+          "MAPE": 3.52
+        },
+        "Revenue Month 3": {
+          "RMSE": 1649.59,
+          "MAE": 1164.21,
+          "R2": -0.2611,
+          "MAPE": 3.84
+        },
+        "Members Month 3": {
+          "RMSE": 5.41,
+          "MAE": 4.84,
+          "R2": -0.8871,
+          "MAPE": 4.7
+        },
+        "Retention Month 3": {
+          "RMSE": 0.04,
+          "MAE": 0.03,
+          "R2": -0.0633,
+          "MAPE": 4.78
+        }
+      },
+      "overall_rmse": 1158.74,
+      "overall_r2": 0.9934
+    },
+    "lasso": {
+      "metrics_by_target": {
+        "Revenue Month 1": {
+          "RMSE": 1366.69,
+          "MAE": 1065.93,
+          "R2": -0.1354,
+          "MAPE": 3.61
+        },
+        "Revenue Month 2": {
+          "RMSE": 1433.5,
+          "MAE": 1166.22,
+          "R2": -0.0346,
+          "MAPE": 3.92
+        },
+        "Revenue Month 3": {
+          "RMSE": 2246.76,
+          "MAE": 1669.43,
+          "R2": -1.3394,
+          "MAPE": 5.55
+        },
+        "Members Month 3": {
+          "RMSE": 4.67,
+          "MAE": 4.41,
+          "R2": -0.4064,
+          "MAPE": 4.31
+        },
+        "Retention Month 3": {
+          "RMSE": 0.04,
+          "MAE": 0.03,
+          "R2": -0.0013,
+          "MAPE": 4.71
+        }
+      },
+      "overall_rmse": 1339.46,
+      "overall_r2": 0.9912
+    },
+    "elastic_net": {
+      "metrics_by_target": {
+        "Revenue Month 1": {
+          "RMSE": 1485.52,
+          "MAE": 979.39,
+          "R2": -0.3414,
+          "MAPE": 3.25
+        },
+        "Revenue Month 2": {
+          "RMSE": 1347.33,
+          "MAE": 959.57,
+          "R2": 0.086,
+          "MAPE": 3.17
+        },
+        "Revenue Month 3": {
+          "RMSE": 1489.86,
+          "MAE": 907.64,
+          "R2": -0.0287,
+          "MAPE": 2.94
+        },
+        "Members Month 3": {
+          "RMSE": 4.67,
+          "MAE": 4.41,
+          "R2": -0.4063,
+          "MAPE": 4.31
+        },
+        "Retention Month 3": {
+          "RMSE": 0.04,
+          "MAE": 0.03,
+          "R2": -0.0013,
+          "MAPE": 4.71
+        }
+      },
+      "overall_rmse": 1117.3,
+      "overall_r2": 0.9939
+    },
+    "gbm": {
+      "metrics_by_target": {
+        "Revenue Month 1": {
+          "RMSE": 1862.64,
+          "MAE": 1153.28,
+          "R2": -1.1089,
+          "MAPE": 3.81
+        },
+        "Revenue Month 2": {
+          "RMSE": 1777.77,
+          "MAE": 1105.53,
+          "R2": -0.5913,
+          "MAPE": 3.59
+        },
+        "Revenue Month 3": {
+          "RMSE": 2333.08,
+          "MAE": 1692.85,
+          "R2": -1.5226,
+          "MAPE": 5.51
+        },
+        "Members Month 3": {
+          "RMSE": 4.13,
+          "MAE": 3.29,
+          "R2": -0.1021,
+          "MAPE": 3.16
+        },
+        "Retention Month 3": {
+          "RMSE": 0.05,
+          "MAE": 0.04,
+          "R2": -0.3723,
+          "MAPE": 5.59
+        }
+      },
+      "overall_rmse": 1553.91,
+      "overall_r2": 0.9881
+    }
+  },
+  "best_model": "elastic_net",
+  "timestamp": "2025-11-05T22:24:24.766386"
+}

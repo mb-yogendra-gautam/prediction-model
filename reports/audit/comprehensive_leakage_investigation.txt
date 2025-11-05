@@ -1,0 +1,29 @@
+================================================================================
+COMPREHENSIVE DATA LEAKAGE INVESTIGATION
+================================================================================
+
+Generated: 2025-11-06 00:02:55
+
+⚠️  FOUND 2 ISSUES
+
+CRITICAL ISSUES:
+--------------------------------------------------------------------------------
+  [Performance Sanity] R² = 0.9911 is suspiciously high (likely data leakage)
+
+HIGH PRIORITY ISSUES:
+--------------------------------------------------------------------------------
+  [Current Period in Features] 3m_avg_revenue doesn't match shifted total_revenue; 3m_avg_retention doesn't match shifted retention_rate
+
+================================================================================
+RECOMMENDATIONS
+================================================================================
+
+❌ DO NOT DEPLOY TO PRODUCTION
+
+Critical data leakage issues detected. Required actions:
+  1. Fix all critical issues in feature engineering code
+  2. Re-train model with corrected features
+  3. Re-run all validation tests
+  4. Verify performance drops to realistic levels
+
+================================================================================

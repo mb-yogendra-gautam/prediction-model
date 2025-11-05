@@ -20,8 +20,9 @@ logger = logging.getLogger(__name__)
 class FeatureEngineer:
     """Transform raw features into model-ready features"""
 
-    def __init__(self):
+    def __init__(self, multi_studio=False):
         self.feature_names = []
+        self.multi_studio = multi_studio
 
     def engineer_features(self, df: pd.DataFrame,
                          is_training: bool = True) -> pd.DataFrame:
@@ -38,35 +39,45 @@ class FeatureEngineer:
         logger.info("Starting feature engineering")
 
         df = df.copy()
+        
+        # Detect if this is multi-studio data
+        if 'studio_id' in df.columns:
+            self.multi_studio = True
+            logger.info("Multi-studio mode detected")
 
         # 1. Direct lever features (already in data)
+        # Note: staff_utilization_rate is optional - will use staff_count as fallback
         direct_features = [
             'retention_rate',
             'avg_ticket_price',
             'class_attendance_rate',
             'new_members',
-            'staff_utilization_rate',
+            'staff_utilization_rate',  # Optional
             'upsell_rate',
             'total_classes_held',
             'total_members'
         ]
 
-        # 2. Temporal features
+        # 2. Studio-level features (if multi-studio)
+        if self.multi_studio:
+            df = self._add_studio_features(df)
+
+        # 3. Temporal features
         df = self._add_temporal_features(df)
 
-        # 3. Derived business metrics
+        # 4. Derived business metrics
         df = self._add_derived_features(df)
 
-        # 4. Lagged features (historical context)
+        # 5. Lagged features (historical context, per studio if multi-studio)
         df = self._add_lagged_features(df)
 
-        # 5. Rolling statistics
+        # 6. Rolling statistics (per studio if multi-studio)
         df = self._add_rolling_features(df)
 
-        # 6. Interaction features
+        # 7. Interaction features
         df = self._add_interaction_features(df)
 
-        # 7. Cyclical encoding for seasonality
+        # 8. Cyclical encoding for seasonality
         df = self._add_cyclical_features(df)
 
         # Remove rows with NaN from rolling/lagged features
@@ -91,6 +102,32 @@ class FeatureEngineer:
         # Already have month_index and year_index from data generation
         return df
 
+    def _add_studio_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Add studio-level features for multi-studio data"""
+        logger.info("Adding studio-level features")
+        
+        # Studio age (months since first record for each studio)
+        if 'month_year' in df.columns:
+            df['month_year_dt'] = pd.to_datetime(df['month_year'])
+            df['studio_age'] = df.groupby('studio_id')['month_year_dt'].rank(method='dense').astype(int)
+            df = df.drop('month_year_dt', axis=1)
+        
+        # Encode studio categorical features
+        if 'studio_location' in df.columns:
+            df['location_urban'] = (df['studio_location'] == 'urban').astype(int)
+        
+        if 'studio_size_tier' in df.columns:
+            df['size_small'] = (df['studio_size_tier'] == 'small').astype(int)
+            df['size_medium'] = (df['studio_size_tier'] == 'medium').astype(int)
+            df['size_large'] = (df['studio_size_tier'] == 'large').astype(int)
+        
+        if 'studio_price_tier' in df.columns:
+            df['price_low'] = (df['studio_price_tier'] == 'low').astype(int)
+            df['price_medium'] = (df['studio_price_tier'] == 'medium').astype(int)
+            df['price_high'] = (df['studio_price_tier'] == 'high').astype(int)
+        
+        return df
+    
     def _add_derived_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Add derived business metrics"""
         logger.info("Adding derived features")
@@ -120,11 +157,15 @@ class FeatureEngineer:
         """Add lagged features for historical context"""
         logger.info("Adding lagged features")
 
-        # Previous month revenue
-        df['prev_month_revenue'] = df['total_revenue'].shift(1).round(2)
-
-        # Previous month members
-        df['prev_month_members'] = df['total_members'].shift(1)
+        if self.multi_studio:
+            # Apply shifts per studio to avoid leakage across studios
+            df['prev_month_revenue'] = df.groupby('studio_id')['total_revenue'].shift(1).round(2)
+            df['prev_month_members'] = df.groupby('studio_id')['total_members'].shift(1)
+        else:
+            # Previous month revenue
+            df['prev_month_revenue'] = df['total_revenue'].shift(1).round(2)
+            # Previous month members
+            df['prev_month_members'] = df['total_members'].shift(1)
 
         # Month-over-month growth
         df['mom_revenue_growth'] = (
@@ -141,16 +182,39 @@ class FeatureEngineer:
         """Add rolling statistics"""
         logger.info("Adding rolling features")
 
-        # 3-month rolling averages
-        df['3m_avg_retention'] = df['retention_rate'].rolling(window=3).mean().round(2)
-        df['3m_avg_revenue'] = df['total_revenue'].rolling(window=3).mean().round(2)
-        df['3m_avg_attendance'] = df['class_attendance_rate'].rolling(window=3).mean().round(2)
+        if self.multi_studio:
+            # Apply rolling features per studio to avoid leakage across studios
+            # 3-month rolling averages (EXCLUDING current month to prevent leakage)
+            df['3m_avg_retention'] = df.groupby('studio_id')['retention_rate'].apply(
+                lambda x: x.shift(1).rolling(window=3, min_periods=1).mean()
+            ).reset_index(level=0, drop=True).round(2)
+            df['3m_avg_revenue'] = df.groupby('studio_id')['total_revenue'].apply(
+                lambda x: x.shift(1).rolling(window=3, min_periods=1).mean()
+            ).reset_index(level=0, drop=True).round(2)
+            df['3m_avg_attendance'] = df.groupby('studio_id')['class_attendance_rate'].apply(
+                lambda x: x.shift(1).rolling(window=3, min_periods=1).mean()
+            ).reset_index(level=0, drop=True).round(2)
+            
+            # 3-month rolling std (volatility) - EXCLUDING current month
+            df['3m_std_revenue'] = df.groupby('studio_id')['total_revenue'].apply(
+                lambda x: x.shift(1).rolling(window=3, min_periods=1).std()
+            ).reset_index(level=0, drop=True).round(2)
+            
+            # Revenue momentum (EMA) - EXCLUDING current month
+            df['revenue_momentum'] = df.groupby('studio_id')['total_revenue'].apply(
+                lambda x: x.shift(1).ewm(span=3).mean()
+            ).reset_index(level=0, drop=True).round(2)
+        else:
+            # 3-month rolling averages (EXCLUDING current month to prevent leakage)
+            df['3m_avg_retention'] = df['retention_rate'].shift(1).rolling(window=3).mean().round(2)
+            df['3m_avg_revenue'] = df['total_revenue'].shift(1).rolling(window=3).mean().round(2)
+            df['3m_avg_attendance'] = df['class_attendance_rate'].shift(1).rolling(window=3).mean().round(2)
 
-        # 3-month rolling std (volatility)
-        df['3m_std_revenue'] = df['total_revenue'].rolling(window=3).std().round(2)
+            # 3-month rolling std (volatility) - EXCLUDING current month
+            df['3m_std_revenue'] = df['total_revenue'].shift(1).rolling(window=3).std().round(2)
 
-        # Revenue momentum (EMA)
-        df['revenue_momentum'] = df['total_revenue'].ewm(span=3).mean().round(2)
+            # Revenue momentum (EMA) - EXCLUDING current month
+            df['revenue_momentum'] = df['total_revenue'].shift(1).ewm(span=3).mean().round(2)
 
         return df
 
@@ -167,14 +231,29 @@ class FeatureEngineer:
         # Upsell × Members
         df['upsell_x_members'] = (df['upsell_rate'] * df['total_members']).round(2)
 
-        # Staff utilization × Members
-        df['staff_util_x_members'] = (df['staff_utilization_rate'] * df['total_members']).round(2)
+        # Staff utilization × Members (only if staff_utilization_rate exists)
+        if 'staff_utilization_rate' in df.columns:
+            df['staff_util_x_members'] = (df['staff_utilization_rate'] * df['total_members']).round(2)
+        elif 'staff_count' in df.columns:
+            # Use staff_count as alternative if available
+            df['staff_util_x_members'] = (df['staff_count'] * df['total_members']).round(2)
+        else:
+            # Set to a default value if neither is available
+            df['staff_util_x_members'] = 0
 
         return df
 
     def _add_cyclical_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Add cyclical encoding for month seasonality"""
         logger.info("Adding cyclical features")
+
+        # Create month_index from month_year if it doesn't exist
+        if 'month_index' not in df.columns:
+            if 'month_year' in df.columns:
+                df['month_index'] = pd.to_datetime(df['month_year']).dt.month
+            else:
+                logger.warning("No 'month_year' or 'month_index' column found, skipping cyclical features")
+                return df
 
         # Sin/cos encoding for month (captures seasonality)
         df['month_sin'] = np.sin(2 * np.pi * df['month_index'] / 12).round(2)

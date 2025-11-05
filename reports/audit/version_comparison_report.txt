@@ -1,0 +1,57 @@
+================================================================================
+MODEL VERSION COMPARISON REPORT
+================================================================================
+
+Comparing: v1.0.0 vs v2.0.0
+
+1. TEST SET PERFORMANCE COMPARISON
+--------------------------------------------------------------------------------
+
+Revenue Month 1:
+  RMSE:  v1.0.0=1857.11  |  v2.0.0=1485.52  |  Improvement: +20.0%
+  R²:    v1.0.0=-1.0964  |  v2.0.0=-0.3414  |  Change: +0.7550
+  MAPE:  v1.0.0=4.25%  |  v2.0.0=3.25%  |  Improvement: +23.5%
+
+Revenue Month 2:
+  RMSE:  v1.0.0=2141.78  |  v2.0.0=1347.33  |  Improvement: +37.1%
+  R²:    v1.0.0=-1.3096  |  v2.0.0=0.0860  |  Change: +1.3956
+  MAPE:  v1.0.0=4.86%  |  v2.0.0=3.17%  |  Improvement: +34.8%
+
+Revenue Month 3:
+  RMSE:  v1.0.0=2468.42  |  v2.0.0=1489.86  |  Improvement: +39.6%
+  R²:    v1.0.0=-1.8237  |  v2.0.0=-0.0287  |  Change: +1.7950
+  MAPE:  v1.0.0=6.19%  |  v2.0.0=2.94%  |  Improvement: +52.5%
+
+
+2. GENERALIZATION ANALYSIS
+--------------------------------------------------------------------------------
+
+v1.0.0 (Ensemble):
+  Train RMSE: 734.22
+  Test RMSE:  2155.77
+  Gap:        193.6%
+  Status:     ⚠️  SEVERE OVERFITTING
+
+v2.0.0 (Regularized):
+  CV RMSE:    1037.25
+  Test RMSE:  1117.30
+  Gap:        7.7%
+  Status:     ✓ GOOD GENERALIZATION
+
+Gap Improvement: 185.9%
+
+
+3. SUMMARY
+--------------------------------------------------------------------------------
+
+Average RMSE Improvement: +32.2%
+Average R² Improvement:   +1.3152
+Generalization Improvement: +185.9%
+
+4. RECOMMENDATION
+--------------------------------------------------------------------------------
+
+✅ RECOMMENDED: Deploy v2.0.0
+Reason: Significant performance improvement with good generalization
+
+================================================================================

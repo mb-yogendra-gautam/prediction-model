@@ -1,0 +1,119 @@
+================================================================================
+DATA LEAKAGE DETECTION REPORT
+================================================================================
+
+1. TEMPORAL INTEGRITY CHECK
+--------------------------------------------------------------------------------
+Suspicious Features (Manual Review Required):
+
+  ⚠️  revenue_momentum
+      Concern: May include current/future revenue
+
+  ⚠️  estimated_ltv
+      Concern: Lifetime value should only use past data
+
+  ⚠️  3m_avg_revenue
+      Concern: Rolling average might include current month
+
+  ⚠️  3m_avg_retention
+      Concern: Rolling average might include current period
+
+  ⚠️  3m_avg_attendance
+      Concern: Rolling average might include current period
+
+  ⚠️  prev_month_revenue
+      Concern: Verify this is truly previous month
+
+  ⚠️  mom_revenue_growth
+      Concern: Growth calculation timing
+
+  ⚠️  mom_member_growth
+      Concern: Growth calculation timing
+
+
+2. HIGH TARGET CORRELATION CHECK
+--------------------------------------------------------------------------------
+  ✓ No suspiciously high correlations found
+
+
+3. ROLLING FEATURE CHECK
+--------------------------------------------------------------------------------
+Rolling window feature statistics:
+
+  3m_avg_retention:
+    Mean: 0.73
+    Variance: 0.00
+    CV: 0.0015
+
+  3m_avg_revenue:
+    Mean: 25908.88
+    Variance: 5796422.48
+    CV: 0.0086
+
+  3m_avg_attendance:
+    Mean: 0.68
+    Variance: 0.00
+    CV: 0.0019
+
+  3m_std_revenue:
+    Mean: 1144.88
+    Variance: 1101992.50
+    CV: 0.8407
+
+
+4. FUTURE INFORMATION CHECK
+--------------------------------------------------------------------------------
+Found 6 features with anomalous jumps:
+
+  - total_members: 1 outliers, max jump = 18.00
+  - new_members: 1 outliers, max jump = 19.00
+  - retention_rate: 1 outliers, max jump = 0.13
+  - avg_ticket_price: 2 outliers, max jump = 23.66
+  - class_attendance_rate: 2 outliers, max jump = 0.17
+  - staff_count: 3 outliers, max jump = 1.00
+
+5. TRAIN/TEST CONTAMINATION CHECK
+--------------------------------------------------------------------------------
+Train/Test distribution differences:
+
+  - avg_ticket_price:
+      Mean diff: 22.9%
+      Std diff: 66.2%
+
+  - staff_count:
+      Mean diff: 1.6%
+      Std diff: 100.0%
+
+  - revenue_per_member:
+      Mean diff: 17.9%
+      Std diff: 68.8%
+
+  - staff_per_member:
+      Mean diff: 1.9%
+      Std diff: 162.5%
+
+
+================================================================================
+RECOMMENDATIONS
+================================================================================
+
+Priority Actions:
+
+1. MANUAL CODE REVIEW (CRITICAL)
+   Review src/features/feature_engineer.py for:
+   - Rolling window calculations (should exclude current period)
+   - Lagged features (should use proper time offsets)
+   - Derived features (should only use past information)
+
+2. FEATURE ENGINEERING FIXES
+   For each suspicious feature, verify:
+   - Calculation uses only data available at prediction time
+   - Proper lagging is applied
+   - No target information leaks
+
+3. TESTING
+   - Implement forward-validation (walk-forward)
+   - Test on truly unseen future data
+   - Monitor for performance drop in production
+
+================================================================================
