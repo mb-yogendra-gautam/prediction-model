@@ -4,7 +4,7 @@ API Routes for Predictions
 
 from fastapi import APIRouter, HTTPException, Depends, Query
 from src.api.schemas.requests import (
-    ForwardPredictionRequest, 
+    ForwardPredictionRequest,
     InversePredictionRequest,
     PartialPredictionRequest
 )
@@ -13,6 +13,7 @@ from src.api.schemas.responses import (
     InversePredictionResponse,
     PartialPredictionResponse
 )
+from src.api.schemas.lever_metadata import get_all_levers, LEVER_REGISTRY
 import logging
 
 logger = logging.getLogger(__name__)
@@ -170,6 +171,48 @@ async def partial_lever_prediction(
     except Exception as e:
         logger.error(f"Partial prediction error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Partial prediction failed: {str(e)}")
+
+
+@router.get("/levers")
+async def get_business_levers(
+    include_details: bool = Query(False, description="Include feasibility thresholds and action templates")
+):
+    """
+    Get all available business levers with their metadata
+
+    Returns comprehensive information about all 8 business levers including:
+    - Name and display name
+    - Data type (float or integer)
+    - Constraints (min/max values)
+    - Description and unit of measurement
+    - Default value and priority
+    - Optional: Feasibility thresholds and action templates
+
+    **Query Parameters:**
+    - include_details: Set to true to include implementation guidance (feasibility thresholds, action templates)
+
+    **Use Cases:**
+    - Dynamic form generation in frontend applications
+    - Validation of user inputs
+    - Understanding lever constraints and priorities
+    - Implementation planning with feasibility guidance
+
+    **Returns:**
+    - levers: Array of lever metadata objects sorted by priority
+    - count: Total number of levers (always 8)
+    - version: Metadata schema version
+    """
+    try:
+        levers = get_all_levers(include_details=include_details)
+
+        return {
+            "levers": levers,
+            "count": len(levers),
+            "version": "1.0.0"
+        }
+    except Exception as e:
+        logger.error(f"Error retrieving levers: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve levers: {str(e)}")
 
 
 @router.post("/inverse/compare-scenarios")

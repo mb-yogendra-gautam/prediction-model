@@ -8,8 +8,9 @@ The Studio Revenue Simulator API provides machine learning-powered predictions f
 2. **Inverse Optimization**: Find optimal lever values to achieve target revenue
 3. **Partial Lever Prediction**: Predict unknown levers based on known values
 4. **Scenario Comparison**: Compare multiple optimization strategies side-by-side
-5. **AI-Powered Insights**: Get strategic business recommendations using GPT-4 (optional)
-6. **Model Explainability**: Understand prediction drivers using SHAP analysis
+5. **Lever Management**: Get metadata for all business levers with constraints and implementation guidance
+6. **AI-Powered Insights**: Get strategic business recommendations using GPT-4 (optional)
+7. **Model Explainability**: Understand prediction drivers using SHAP analysis
 
 ---
 
@@ -697,6 +698,137 @@ curl -X POST "http://localhost:8000/api/v1/predict/inverse/compare-scenarios" \
       }
     ]
   }'
+```
+
+---
+
+### Lever Management
+
+#### GET `/api/v1/predict/levers`
+
+Get metadata for all available business levers.
+
+**Use Case:**
+This endpoint provides comprehensive information about all 8 business levers that can be used in predictions and optimizations. Ideal for:
+- Dynamic form generation in frontend applications
+- Input validation
+- Understanding lever constraints and priorities
+- Implementation planning
+
+**Query Parameters:**
+- `include_details` (boolean, optional): Set to `true` to include feasibility thresholds and action templates for implementation guidance. Default: `false`
+
+**Response (Basic):**
+```json
+{
+  "levers": [
+    {
+      "name": "retention_rate",
+      "display_name": "Member Retention Rate",
+      "data_type": "float",
+      "constraints": {
+        "min": 0.5,
+        "max": 1.0
+      },
+      "description": "Percentage of members who remain active from one month to the next",
+      "unit": "percentage",
+      "default_value": 0.75,
+      "priority": 1
+    },
+    {
+      "name": "avg_ticket_price",
+      "display_name": "Average Ticket Price",
+      "data_type": "float",
+      "constraints": {
+        "min": 50.0,
+        "max": 500.0
+      },
+      "description": "Average monthly membership or package price per customer",
+      "unit": "dollars",
+      "default_value": 150.0,
+      "priority": 2
+    },
+    {
+      "name": "new_members",
+      "display_name": "New Members per Month",
+      "data_type": "integer",
+      "constraints": {
+        "min": 0,
+        "max": 100
+      },
+      "description": "Number of new members acquired per month",
+      "unit": "count",
+      "default_value": 25,
+      "priority": 3
+    }
+    // ... 5 more levers
+  ],
+  "count": 8,
+  "version": "1.0.0"
+}
+```
+
+**Response (With Details - `?include_details=true`):**
+```json
+{
+  "levers": [
+    {
+      "name": "retention_rate",
+      "display_name": "Member Retention Rate",
+      "data_type": "float",
+      "constraints": {
+        "min": 0.5,
+        "max": 1.0
+      },
+      "description": "Percentage of members who remain active from one month to the next",
+      "unit": "percentage",
+      "default_value": 0.75,
+      "priority": 1,
+      "feasibility_thresholds": {
+        "easy": 0.02,
+        "moderate": 0.05,
+        "hard": 0.10,
+        "very_hard": 0.10
+      },
+      "action_template": {
+        "description": "Improve member retention through enhanced engagement programs and personalized services",
+        "timeline_weeks": 8,
+        "department": "Member Success",
+        "resources": "Engagement software, customer success team"
+      }
+    }
+    // ... 7 more levers with full details
+  ],
+  "count": 8,
+  "version": "1.0.0"
+}
+```
+
+**Lever Priority Ranking:**
+1. **retention_rate** - Highest impact on revenue
+2. **avg_ticket_price** - Direct revenue driver
+3. **new_members** - Growth engine
+4. **upsell_rate** - Revenue per member optimization
+5. **class_attendance_rate** - Engagement metric
+6. **staff_utilization_rate** - Operational efficiency
+7. **total_classes_held** - Capacity management
+8. **total_members** - Base metric
+
+**Feasibility Thresholds:**
+When `include_details=true`, each lever includes difficulty ratings for implementation:
+- **easy**: Small changes that are simple to implement
+- **moderate**: Medium changes requiring some effort
+- **hard**: Large changes requiring significant resources
+- **very_hard**: Very large changes with high complexity
+
+**cURL Example (Basic):**
+```bash
+curl -X GET "http://localhost:8000/api/v1/predict/levers"
+```
+
+**cURL Example (With Details):**
+```bash
+curl -X GET "http://localhost:8000/api/v1/predict/levers?include_details=true"
 ```
 
 ---
