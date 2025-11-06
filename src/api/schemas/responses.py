@@ -7,6 +7,15 @@ from typing import List, Optional, Dict
 from datetime import datetime
 
 
+class AIInsights(BaseModel):
+    """AI-generated insights about predictions using OpenAI"""
+    executive_summary: str = Field(..., description="High-level summary of predictions in business language")
+    key_drivers: List[str] = Field(..., description="Main factors driving the predictions")
+    recommendations: List[str] = Field(..., description="Actionable recommendations for the studio")
+    risks: List[str] = Field(..., description="Potential risks or concerns to be aware of")
+    confidence_explanation: str = Field(..., description="Explanation of confidence levels in plain language")
+
+
 class MonthlyPrediction(BaseModel):
     """Prediction for a single month"""
     month: int = Field(..., description="Month number (1, 2, 3, etc.)")
@@ -19,7 +28,7 @@ class MonthlyPrediction(BaseModel):
 class ForwardPredictionResponse(BaseModel):
     """Response for forward prediction"""
     model_config = {"protected_namespaces": ()}
-    
+
     scenario_id: str = Field(..., description="Unique scenario identifier")
     studio_id: str = Field(..., description="Studio identifier")
     predictions: List[MonthlyPrediction] = Field(..., description="Monthly predictions")
@@ -27,6 +36,9 @@ class ForwardPredictionResponse(BaseModel):
     average_confidence: float = Field(..., description="Average confidence score")
     model_version: str = Field(..., description="Model version used")
     timestamp: str = Field(..., description="Prediction timestamp")
+    explanation: Optional[Dict] = Field(None, description="SHAP-based explanation of prediction drivers")
+    quick_wins: Optional[List[Dict]] = Field(None, description="Quick win recommendations for improving revenue")
+    ai_insights: Optional[AIInsights] = Field(None, description="AI-generated business insights about predictions")
 
 
 class LeverChange(BaseModel):
@@ -51,7 +63,7 @@ class ActionItem(BaseModel):
 class InversePredictionResponse(BaseModel):
     """Response for inverse prediction"""
     model_config = {"protected_namespaces": ()}
-    
+
     optimization_id: str = Field(..., description="Unique optimization identifier")
     studio_id: str = Field(..., description="Studio identifier")
     target_revenue: float = Field(..., description="Target revenue requested")
@@ -63,6 +75,7 @@ class InversePredictionResponse(BaseModel):
     confidence_score: float = Field(..., ge=0.0, le=1.0, description="Optimization confidence")
     model_version: str = Field(..., description="Model version used")
     timestamp: str = Field(..., description="Optimization timestamp")
+    ai_insights: Optional[AIInsights] = Field(None, description="AI-generated business insights about optimization")
 
 
 class PredictedLever(BaseModel):
@@ -76,7 +89,7 @@ class PredictedLever(BaseModel):
 class PartialPredictionResponse(BaseModel):
     """Response for partial lever prediction"""
     model_config = {"protected_namespaces": ()}
-    
+
     prediction_id: str = Field(..., description="Unique prediction identifier")
     studio_id: str = Field(..., description="Studio identifier")
     input_levers: Dict[str, float] = Field(..., description="Input lever values provided")
@@ -85,6 +98,7 @@ class PartialPredictionResponse(BaseModel):
     model_version: str = Field(..., description="Model version used")
     timestamp: str = Field(..., description="Prediction timestamp")
     notes: Optional[str] = Field(None, description="Additional notes or warnings")
+    ai_insights: Optional[AIInsights] = Field(None, description="AI-generated business insights about predicted levers")
 
 
 class HealthCheckResponse(BaseModel):

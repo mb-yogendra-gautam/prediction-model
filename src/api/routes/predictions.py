@@ -2,7 +2,7 @@
 API Routes for Predictions
 """
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from src.api.schemas.requests import (
     ForwardPredictionRequest, 
     InversePredictionRequest,
@@ -36,10 +36,13 @@ def get_prediction_service():
 
 
 @router.post("/forward", response_model=ForwardPredictionResponse)
-async def forward_prediction(request: ForwardPredictionRequest):
+async def forward_prediction(
+    request: ForwardPredictionRequest,
+    include_ai_insights: bool = Query(False, description="Generate AI-powered business insights using LangChain and OpenAI")
+):
     """
     Forward prediction: Given lever values, predict future revenue
-    
+
     **Input levers:**
     - retention_rate: Member retention rate (0.5-1.0)
     - avg_ticket_price: Average monthly ticket price ($50-$500)
@@ -49,23 +52,27 @@ async def forward_prediction(request: ForwardPredictionRequest):
     - upsell_rate: Upsell rate (0.0-0.5)
     - total_classes_held: Total classes per month (50-500)
     - total_members: Current total member count (min 50)
-    
+
+    **Query Parameters:**
+    - include_ai_insights: Set to true to get AI-generated business insights (requires OpenAI API key)
+
     **Returns:**
     - Monthly revenue predictions for 1-3 months
     - Member count projections
     - Confidence scores
+    - AI insights (if requested)
     """
     try:
         service = get_prediction_service()
-        
+
         # Convert request to dict
         request_dict = {
             'studio_id': request.studio_id,
             'levers': request.levers.dict(),
             'projection_months': request.projection_months
         }
-        
-        result = service.predict_forward(request_dict)
+
+        result = service.predict_forward(request_dict, include_ai_insights=include_ai_insights)
         return result
         
     except Exception as e:
@@ -74,25 +81,32 @@ async def forward_prediction(request: ForwardPredictionRequest):
 
 
 @router.post("/inverse", response_model=InversePredictionResponse)
-async def inverse_prediction(request: InversePredictionRequest):
+async def inverse_prediction(
+    request: InversePredictionRequest,
+    include_ai_insights: bool = Query(False, description="Generate AI-powered business insights using LangChain and OpenAI")
+):
     """
     Inverse prediction: Given target revenue, find optimal lever values
-    
+
     **Process:**
     1. Takes target revenue and current business state
     2. Uses optimization to find best lever adjustments
     3. Returns recommended lever values within constraints
     4. Provides prioritized action plan
-    
+
+    **Query Parameters:**
+    - include_ai_insights: Set to true to get AI-generated strategic insights (requires OpenAI API key)
+
     **Returns:**
     - Optimized lever values
     - Achievable revenue (may differ from target)
     - Detailed lever changes with priorities
     - Action plan with timeline
+    - AI insights (if requested)
     """
     try:
         service = get_prediction_service()
-        
+
         # Convert request to dict
         request_dict = {
             'studio_id': request.studio_id,
@@ -101,8 +115,8 @@ async def inverse_prediction(request: InversePredictionRequest):
             'constraints': request.constraints.dict() if request.constraints else {},
             'target_months': request.target_months
         }
-        
-        result = service.predict_inverse(request_dict)
+
+        result = service.predict_inverse(request_dict, include_ai_insights=include_ai_insights)
         return result
         
     except Exception as e:
@@ -111,39 +125,46 @@ async def inverse_prediction(request: InversePredictionRequest):
 
 
 @router.post("/partial", response_model=PartialPredictionResponse)
-async def partial_lever_prediction(request: PartialPredictionRequest):
+async def partial_lever_prediction(
+    request: PartialPredictionRequest,
+    include_ai_insights: bool = Query(False, description="Generate AI-powered business insights using LangChain and OpenAI")
+):
     """
     Partial lever prediction: Given subset of levers, predict remaining levers
-    
+
     **Use cases:**
     - "If I know retention and price, what attendance rate should I expect?"
     - "Given my current members and classes, what revenue can I achieve?"
     - "What new member count do I need to hit my revenue target?"
-    
+
     **Input:**
     - input_levers: Dictionary of known lever values
     - output_levers: List of lever names to predict
-    
+
     **Supported output levers:**
     - All 8 primary levers (retention_rate, avg_ticket_price, etc.)
     - total_revenue (special case)
-    
+
+    **Query Parameters:**
+    - include_ai_insights: Set to true to get AI-generated insights about predicted levers (requires OpenAI API key)
+
     **Returns:**
     - Predicted values for requested levers
     - Confidence scores for each prediction
     - Value ranges (min, max)
+    - AI insights (if requested)
     """
     try:
         service = get_prediction_service()
-        
+
         # Convert request to dict
         request_dict = {
             'studio_id': request.studio_id,
             'input_levers': request.input_levers,
             'output_levers': request.output_levers
         }
-        
-        result = service.predict_partial_levers(request_dict)
+
+        result = service.predict_partial_levers(request_dict, include_ai_insights=include_ai_insights)
         return result
         
     except Exception as e:

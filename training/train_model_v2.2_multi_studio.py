@@ -244,22 +244,38 @@ class MultiStudioModelTrainer:
         logger.info(f"Best model: {best_model_name}")
         return best_model_name
     
-    def save_artifacts(self, best_model_name, feature_importance, version='2.2.0'):
+    def save_artifacts(self, best_model_name, feature_importance, X_train_scaled=None, version='2.2.0'):
         """Save model artifacts"""
         logger.info(f"Saving model v{version}...")
-        
+
         output_dir = Path('data/models')
         output_dir.mkdir(parents=True, exist_ok=True)
-        
+
         best_model = self.models[best_model_name]
         joblib.dump(best_model, output_dir / f'best_model_v{version}.pkl')
         joblib.dump(self.models, output_dir / f'all_models_v{version}.pkl')
         joblib.dump(self.scaler, output_dir / f'scaler_v{version}.pkl')
         joblib.dump(self.feature_selector, output_dir / f'feature_selector_v{version}.pkl')
         joblib.dump(self.selected_features, output_dir / f'selected_features_v{version}.pkl')
-        
+
+        # Save SHAP background data (sample of training data for baseline)
+        if X_train_scaled is not None:
+            logger.info("Saving SHAP background data...")
+            # Use 100 representative samples from training data
+            n_background_samples = min(100, len(X_train_scaled))
+            # Use random sampling stratified across the dataset
+            np.random.seed(42)
+            background_indices = np.random.choice(
+                len(X_train_scaled),
+                size=n_background_samples,
+                replace=False
+            )
+            shap_background = X_train_scaled[background_indices]
+            joblib.dump(shap_background, output_dir / f'shap_background_v{version}.pkl')
+            logger.info(f"Saved {n_background_samples} background samples for SHAP")
+
         feature_importance.to_csv(f'reports/audit/feature_importance_v{version}.csv', index=False)
-        
+
         metadata = {
             'version': version,
             'best_model': best_model_name,
@@ -267,12 +283,13 @@ class MultiStudioModelTrainer:
             'selected_features': self.selected_features,
             'training_date': datetime.now().isoformat(),
             'phase': 'Phase 3 - Multi-Studio Data',
-            'data_type': 'multi_studio'
+            'data_type': 'multi_studio',
+            'has_shap_background': X_train_scaled is not None
         }
-        
+
         with open(output_dir / f'metadata_v{version}.json', 'w') as f:
             json.dump(metadata, f, indent=2)
-        
+
         logger.info(f"Models saved to {output_dir}")
 
 
@@ -347,7 +364,7 @@ def main():
     
     # Save artifacts
     print("\nStep 10: Saving model artifacts...")
-    trainer.save_artifacts(best_model_name, feature_importance, version='2.2.0')
+    trainer.save_artifacts(best_model_name, feature_importance, X_train_scaled=X_train_val_scaled, version='2.2.0')
     
     # Final summary
     print("\n" + "="*80)

@@ -22,16 +22,17 @@ class ModelRegistry:
     def load_model(self, version: str = "2.2.0") -> Dict[str, Any]:
         """
         Load model artifacts for a specific version
-        
+
         Args:
             version: Model version to load (default: 2.2.0)
-            
+
         Returns:
             Dictionary containing model artifacts:
                 - model: The trained model
                 - scaler: Feature scaler
                 - selected_features: List of selected feature names
                 - feature_selector: Feature selector object
+                - shap_background: Background data for SHAP (optional)
                 - metadata: Model metadata
         """
         logger.info(f"Loading model version {version}")
@@ -43,8 +44,9 @@ class ModelRegistry:
             features_path = self.base_dir / f'selected_features_v{version}.pkl'
             selector_path = self.base_dir / f'feature_selector_v{version}.pkl'
             metadata_path = self.base_dir / f'metadata_v{version}.json'
+            shap_background_path = self.base_dir / f'shap_background_v{version}.pkl'
 
-            # Check if all files exist
+            # Check if all required files exist
             for path in [model_path, scaler_path, features_path, selector_path, metadata_path]:
                 if not path.exists():
                     raise FileNotFoundError(f"Missing model artifact: {path}")
@@ -54,9 +56,17 @@ class ModelRegistry:
             scaler = joblib.load(scaler_path)
             selected_features = joblib.load(features_path)
             feature_selector = joblib.load(selector_path)
-            
+
             with open(metadata_path, 'r') as f:
                 metadata = json.load(f)
+
+            # Load SHAP background data if available
+            shap_background = None
+            if shap_background_path.exists():
+                shap_background = joblib.load(shap_background_path)
+                logger.info(f"Loaded SHAP background data: {shap_background.shape}")
+            else:
+                logger.warning(f"SHAP background data not found at {shap_background_path}")
 
             logger.info(f"Successfully loaded model version {version}")
             logger.info(f"Model type: {metadata.get('best_model', 'unknown')}")
@@ -67,6 +77,7 @@ class ModelRegistry:
                 'scaler': scaler,
                 'selected_features': selected_features,
                 'feature_selector': feature_selector,
+                'shap_background': shap_background,
                 'metadata': metadata,
                 'version': version
             }

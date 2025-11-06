@@ -234,6 +234,11 @@ class MultiStudioDataGenerator:
         
         logger.info(f"Generated {len(df)} total studio-months")
         
+        output_path = Path('data/raw/multi_studio_data_raw.csv')
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        df.to_csv(output_path, index=False)
+        logger.info(f"Data saved to {output_path}")
         return df
     
     def _generate_studio_data(self, profile):
@@ -295,15 +300,15 @@ class MultiStudioDataGenerator:
             upsell_rate = 0.15 + np.random.normal(0, 0.03)
             upsell_rate = np.clip(upsell_rate, 0.08, 0.25)
             
-            # Future targets (simplified - assume similar patterns continue)
-            # In reality, these would have their own logic
-            revenue_month_1 = total_revenue * (1 + profile['growth_rate'] * 1) * (1 + np.random.normal(0, 0.02))
-            revenue_month_2 = total_revenue * (1 + profile['growth_rate'] * 2) * (1 + np.random.normal(0, 0.02))
-            revenue_month_3 = total_revenue * (1 + profile['growth_rate'] * 3) * (1 + np.random.normal(0, 0.02))
+            # # Future targets (simplified - assume similar patterns continue)
+            # # In reality, these would have their own logic
+            # revenue_month_1 = total_revenue * (1 + profile['growth_rate'] * 1) * (1 + np.random.normal(0, 0.02))
+            # revenue_month_2 = total_revenue * (1 + profile['growth_rate'] * 2) * (1 + np.random.normal(0, 0.02))
+            # revenue_month_3 = total_revenue * (1 + profile['growth_rate'] * 3) * (1 + np.random.normal(0, 0.02))
             
-            member_count_month_3 = int(members * (1 + profile['growth_rate'] * 3) * (1 + np.random.normal(0, 0.02)))
-            retention_rate_month_3 = retention_rate * (1 + np.random.normal(0, 0.01))
-            retention_rate_month_3 = np.clip(retention_rate_month_3, 0.60, 0.85)
+            # member_count_month_3 = int(members * (1 + profile['growth_rate'] * 3) * (1 + np.random.normal(0, 0.02)))
+            # retention_rate_month_3 = retention_rate * (1 + np.random.normal(0, 0.01))
+            # retention_rate_month_3 = np.clip(retention_rate_month_3, 0.60, 0.85)
             
             # Create record
             record = {
@@ -328,11 +333,11 @@ class MultiStudioDataGenerator:
                 'studio_size_tier': profile['size_tier'],
                 'studio_price_tier': profile['price_tier'],
                 # Targets
-                'revenue_month_1': round(revenue_month_1, 2),
-                'revenue_month_2': round(revenue_month_2, 2),
-                'revenue_month_3': round(revenue_month_3, 2),
-                'member_count_month_3': member_count_month_3,
-                'retention_rate_month_3': round(retention_rate_month_3, 2)
+                # 'revenue_month_1': round(revenue_month_1, 2),
+                # 'revenue_month_2': round(revenue_month_2, 2),
+                # 'revenue_month_3': round(revenue_month_3, 2),
+                # 'member_count_month_3': member_count_month_3,
+                # 'retention_rate_month_3': round(retention_rate_month_3, 2)
             }
             
             data.append(record)

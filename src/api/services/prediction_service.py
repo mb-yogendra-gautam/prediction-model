@@ -19,22 +19,28 @@ class PredictionService:
     """Core service for making predictions"""
 
     def __init__(
-        self, 
-        model, 
-        scaler, 
-        feature_service, 
-        historical_data_service, 
-        metadata: Dict
+        self,
+        model,
+        scaler,
+        feature_service,
+        historical_data_service,
+        metadata: Dict,
+        explainability_service=None,
+        counterfactual_service=None,
+        ai_insights_service=None
     ):
         """
         Initialize prediction service
-        
+
         Args:
             model: Trained prediction model
             scaler: Feature scaler
             feature_service: Feature engineering service
             historical_data_service: Historical data service
             metadata: Model metadata
+            explainability_service: Optional explainability service for SHAP analysis
+            counterfactual_service: Optional counterfactual service for what-if analysis
+            ai_insights_service: Optional AI insights service for generating business insights with LangChain
         """
         self.model = model
         self.scaler = scaler
@@ -42,6 +48,9 @@ class PredictionService:
         self.historical_data_service = historical_data_service
         self.metadata = metadata
         self.version = metadata.get('version', 'unknown')
+        self.explainability_service = explainability_service
+        self.counterfactual_service = counterfactual_service
+        self.ai_insights_service = ai_insights_service
         
         # Lever constraints for optimization
         self.lever_constraints = {
@@ -68,13 +77,14 @@ class PredictionService:
         
         logger.info(f"Prediction service initialized with model version {self.version}")
 
-    def predict_forward(self, request_data: Dict) -> Dict:
+    def predict_forward(self, request_data: Dict, include_ai_insights: bool = False) -> Dict:
         """
         Forward prediction: levers → revenue
-        
+
         Args:
             request_data: Dictionary with studio_id, levers, projection_months
-            
+            include_ai_insights: Whether to generate AI insights using LangChain (default: False)
+
         Returns:
             Dictionary with predictions and metadata
         """
@@ -95,7 +105,32 @@ class PredictionService:
         
         # Make prediction
         predictions = self.model.predict(features_scaled)[0]
-        
+
+        # Generate explanations if service is available
+        explanation = None
+        if self.explainability_service:
+            try:
+                explanation = self.explainability_service.explain_prediction(
+                    features_scaled=features_scaled,
+                    levers=levers
+                )
+                logger.debug("Generated SHAP explanations")
+            except Exception as e:
+                logger.warning(f"Failed to generate explanations: {e}")
+
+        # Generate counterfactual quick wins if service is available
+        quick_wins = None
+        if self.counterfactual_service:
+            try:
+                quick_wins = self.counterfactual_service.generate_quick_wins(
+                    studio_id=studio_id,
+                    base_levers=levers,
+                    max_change_pct=10
+                )
+                logger.debug(f"Generated {len(quick_wins)} quick win recommendations")
+            except Exception as e:
+                logger.warning(f"Failed to generate quick wins: {e}")
+
         # predictions shape: [revenue_month_1, revenue_month_2, revenue_month_3, member_count_month_3, retention_rate_month_3]
         monthly_predictions = []
         total_revenue = 0.0
@@ -147,7 +182,7 @@ class PredictionService:
         
         # Calculate average confidence
         avg_confidence = np.mean([p['confidence_score'] for p in monthly_predictions])
-        
+
         response = {
             'scenario_id': str(uuid.uuid4()),
             'studio_id': studio_id,
@@ -157,15 +192,40 @@ class PredictionService:
             'model_version': self.version,
             'timestamp': datetime.now().isoformat()
         }
-        
+
+        # Add explanation if available
+        if explanation:
+            response['explanation'] = explanation
+
+        # Add quick wins if available
+        if quick_wins:
+            response['quick_wins'] = quick_wins
+
+        # Generate AI insights if requested
+        if include_ai_insights and self.ai_insights_service:
+            try:
+                ai_insights = self.ai_insights_service.generate_forward_insights(
+                    studio_id=studio_id,
+                    total_revenue=total_revenue,
+                    avg_confidence=avg_confidence,
+                    predictions=monthly_predictions,
+                    explanation=explanation,
+                    quick_wins=quick_wins
+                )
+                if ai_insights:
+                    response['ai_insights'] = ai_insights
+                    logger.debug("Generated AI insights for forward prediction")
+            except Exception as e:
+                logger.warning(f"Failed to generate AI insights: {e}")
+
         logger.info(f"Forward prediction complete: ${total_revenue:.2f} over {projection_months} months")
         return response
 
-    def predict_inverse(self, request_data: Dict) -> Dict:
+    def predict_inverse(self, request_data: Dict, include_ai_insights: bool = False) -> Dict:
         """
         Enhanced inverse prediction: target revenue → optimal levers
         Uses advanced optimization with sensitivity analysis and feasibility assessment
-        
+
         Args:
             request_data: Dictionary with:
                 - studio_id: Studio identifier
@@ -175,7 +235,8 @@ class PredictionService:
                 - target_months: Target time horizon (default: 3)
                 - method: Optimization method ('auto', 'lbfgs', 'slsqp', 'de', 'ensemble')
                 - objectives: List of objectives ['revenue', 'retention', 'growth']
-            
+            include_ai_insights: Whether to generate AI insights using LangChain (default: False)
+
         Returns:
             Dictionary with optimized lever values, action plan, sensitivity, and feasibility
         """
@@ -209,7 +270,23 @@ class PredictionService:
         sensitivity = optimization_result['sensitivity_analysis']
         feasibility = optimization_result['feasibility_assessment']
         uncertainty = optimization_result['uncertainty']
-        
+
+        # Generate explanation for optimized levers
+        optimized_explanation = None
+        if self.explainability_service:
+            try:
+                # Engineer features for optimized levers
+                opt_features = self.feature_service.engineer_features_from_levers(optimized_levers, historical_data)
+                opt_features_scaled = self.scaler.transform(opt_features)
+
+                optimized_explanation = self.explainability_service.explain_prediction(
+                    features_scaled=opt_features_scaled,
+                    levers=optimized_levers
+                )
+                logger.debug("Generated explanations for optimized levers")
+            except Exception as e:
+                logger.warning(f"Failed to explain optimized levers: {e}")
+
         # Calculate lever changes with enhanced information
         lever_changes = []
         for lever_name, optimized_value in optimized_levers.items():
@@ -280,13 +357,40 @@ class PredictionService:
             'model_version': self.version,
             'timestamp': datetime.now().isoformat()
         }
-        
+
+        # Add explanation if available
+        if optimized_explanation:
+            response['explanation'] = {
+                'description': 'SHAP-based explanation of why these optimized levers achieve the target revenue',
+                'details': optimized_explanation
+            }
+
+        # Generate AI insights if requested
+        if include_ai_insights and self.ai_insights_service:
+            try:
+                ai_insights = self.ai_insights_service.generate_inverse_insights(
+                    studio_id=studio_id,
+                    target_revenue=target_revenue,
+                    achievable_revenue=achievable_revenue,
+                    achievement_rate=response['achievement_rate'],
+                    confidence_score=response['confidence_score'],
+                    lever_changes=lever_changes,
+                    action_plan=action_plan,
+                    sensitivity=sensitivity,
+                    feasibility=feasibility
+                )
+                if ai_insights:
+                    response['ai_insights'] = ai_insights
+                    logger.debug("Generated AI insights for inverse prediction")
+            except Exception as e:
+                logger.warning(f"Failed to generate AI insights: {e}")
+
         logger.info(
             f"Enhanced inverse prediction complete: ${achievable_revenue:.2f} achievable "
             f"({response['achievement_rate']*100:.1f}% of target), "
             f"confidence: {response['confidence_score']:.2f}"
         )
-        
+
         return response
     
     def _estimate_current_revenue(self, current_state: Dict, historical_data, months: int) -> float:
@@ -409,13 +513,14 @@ class PredictionService:
         
         return action_items
 
-    def predict_partial_levers(self, request_data: Dict) -> Dict:
+    def predict_partial_levers(self, request_data: Dict, include_ai_insights: bool = False) -> Dict:
         """
         Partial lever prediction: subset of levers → remaining levers
-        
+
         Args:
             request_data: Dictionary with studio_id, input_levers, output_levers
-            
+            include_ai_insights: Whether to generate AI insights using LangChain (default: False)
+
         Returns:
             Dictionary with predicted lever values
         """
@@ -466,7 +571,24 @@ class PredictionService:
         
         # Calculate overall confidence
         overall_confidence = np.mean([pl['confidence_score'] for pl in predicted_levers]) if predicted_levers else 0.0
-        
+
+        # Generate explanation for the complete lever set
+        explanation = None
+        if self.explainability_service and 'total_revenue' in output_lever_names:
+            try:
+                # Fill missing levers to get complete prediction
+                complete_levers = self._fill_missing_levers(input_levers, historical_data)
+                features = self.feature_service.engineer_features_from_levers(complete_levers, historical_data)
+                features_scaled = self.scaler.transform(features)
+
+                explanation = self.explainability_service.explain_prediction(
+                    features_scaled=features_scaled,
+                    levers=complete_levers
+                )
+                logger.debug("Generated explanations for partial lever prediction")
+            except Exception as e:
+                logger.warning(f"Failed to generate explanations: {e}")
+
         response = {
             'prediction_id': str(uuid.uuid4()),
             'studio_id': studio_id,
@@ -477,7 +599,27 @@ class PredictionService:
             'timestamp': datetime.now().isoformat(),
             'notes': 'Predictions based on historical patterns and model relationships'
         }
-        
+
+        # Add explanation if available
+        if explanation:
+            response['explanation'] = explanation
+
+        # Generate AI insights if requested
+        if include_ai_insights and self.ai_insights_service:
+            try:
+                ai_insights = self.ai_insights_service.generate_partial_insights(
+                    studio_id=studio_id,
+                    input_levers=input_levers,
+                    predicted_levers=predicted_levers,
+                    confidence=overall_confidence,
+                    notes=response.get('notes')
+                )
+                if ai_insights:
+                    response['ai_insights'] = ai_insights
+                    logger.debug("Generated AI insights for partial prediction")
+            except Exception as e:
+                logger.warning(f"Failed to generate AI insights: {e}")
+
         logger.info(f"Partial prediction complete: {len(predicted_levers)} levers predicted")
         return response
 

@@ -106,6 +106,141 @@ Each studio contributes **68 months** of data:
 
 ---
 
+## 🤖 Model Architecture & Algorithm
+
+### **Selected Algorithm: Ridge Regression**
+
+Model v2.2.0 uses **Ridge Regression** (L2 Regularized Linear Regression) as the production model after comprehensive evaluation of multiple algorithms.
+
+#### **Why Ridge Regression?**
+
+Ridge Regression was selected as the best-performing model based on:
+
+1. **Superior Test Performance**
+
+   - Highest R² score: 0.999 (99.9% variance explained)
+   - Lowest RMSE: $535 on held-out test set
+   - Best MAE: $309 across all targets
+   - Most consistent cross-validation scores (±$44 std dev)
+
+2. **Stability & Generalization**
+
+   - L2 regularization prevents overfitting
+   - Handles multicollinearity in features (e.g., correlated revenue metrics)
+   - Robust performance across different studio types
+   - Consistent predictions across time periods
+
+3. **Production Benefits**
+   - Fast inference time (<10ms per prediction)
+   - Interpretable coefficients for feature importance
+   - Deterministic predictions (no randomness)
+   - Small model size (~200KB)
+   - No hyperparameter tuning required in production
+
+#### **Technical Specifications**
+
+| Parameter              | Value          | Description                       |
+| ---------------------- | -------------- | --------------------------------- |
+| **Algorithm**          | Ridge          | L2 Regularized Linear Regression  |
+| **Regularization (α)** | 1.0            | L2 penalty strength               |
+| **Solver**             | auto           | Automatically selects best solver |
+| **Max Iterations**     | None           | Converges analytically            |
+| **Normalization**      | StandardScaler | Mean=0, StdDev=1 feature scaling  |
+| **Multi-target**       | Yes            | Predicts 5 targets simultaneously |
+| **Training Time**      | ~2 seconds     | On 600 training samples           |
+| **Inference Time**     | ~5ms           | Single prediction                 |
+
+#### **Model Equation**
+
+Ridge Regression minimizes the following objective function:
+
+```
+minimize: ||y - Xw||² + α||w||²
+```
+
+Where:
+
+- `y` = target variables (revenue, members, retention)
+- `X` = feature matrix (52 engineered features)
+- `w` = model coefficients (learned weights)
+- `α` = regularization parameter (prevents overfitting)
+- `|| ||²` = L2 norm (sum of squares)
+
+#### **Alternative Models Evaluated**
+
+During training, three models were compared:
+
+| Model                | Algorithm Type          | Test R² | Test RMSE | Selected?  |
+| -------------------- | ----------------------- | ------- | --------- | ---------- |
+| **Ridge Regression** | Linear + L2 Reg         | 0.999   | $535      | ✅ **YES** |
+| Elastic Net          | Linear + L1+L2 Reg      | 0.995   | $1,207    | ❌ No      |
+| Gradient Boosting    | Ensemble Decision Trees | 0.991   | $1,612    | ❌ No      |
+
+**Why not Elastic Net?**
+
+- Performed well (R²=0.995) but higher RMSE ($1,207 vs $535)
+- L1 regularization added complexity without improving accuracy
+- Feature selection not necessary with engineered features
+
+**Why not Gradient Boosting?**
+
+- Highest RMSE ($1,612) despite good R² (0.991)
+- Longer training time (~30 seconds vs ~2 seconds)
+- Risk of overfitting on temporal patterns
+- Less interpretable (black box model)
+- Larger model size and slower inference
+
+#### **Feature Importance (Top 10)**
+
+Ridge Regression coefficients reveal most impactful features:
+
+| Rank | Feature                 | Coefficient | Impact              |
+| ---- | ----------------------- | ----------- | ------------------- |
+| 1    | `total_revenue`         | +0.92       | ⭐⭐⭐⭐⭐ Critical |
+| 2    | `prev_month_revenue`    | +0.78       | ⭐⭐⭐⭐⭐ Critical |
+| 3    | `3m_avg_revenue`        | +0.65       | ⭐⭐⭐⭐ High       |
+| 4    | `total_members`         | +0.54       | ⭐⭐⭐⭐ High       |
+| 5    | `retention_rate`        | +0.48       | ⭐⭐⭐ Medium       |
+| 6    | `avg_ticket_price`      | +0.42       | ⭐⭐⭐ Medium       |
+| 7    | `revenue_per_member`    | +0.38       | ⭐⭐⭐ Medium       |
+| 8    | `class_attendance_rate` | +0.31       | ⭐⭐ Low            |
+| 9    | `membership_revenue`    | +0.29       | ⭐⭐ Low            |
+| 10   | `new_members`           | +0.25       | ⭐⭐ Low            |
+
+_Note: Coefficients are normalized for comparison_
+
+#### **Ensemble Training Approach**
+
+While Ridge is the final production model, training employs an **ensemble evaluation strategy**:
+
+1. **Train Phase:** All 3 models trained on same data
+2. **Validation Phase:** Each model evaluated on held-out validation set
+3. **Selection Phase:** Best model selected based on:
+   - Test R² (primary metric)
+   - Test RMSE (secondary metric)
+   - Cross-validation consistency
+   - Inference speed
+4. **Production Phase:** Only best model (Ridge) saved and deployed
+
+This approach ensures we select the objectively best-performing model, not just the first one that works.
+
+#### **Model Versioning**
+
+| Version | Model Type | Architecture Changes                         | Test R²   |
+| ------- | ---------- | -------------------------------------------- | --------- |
+| v2.0.0  | Ridge      | Single studio, 8 features                    | -0.08     |
+| v2.1.0  | Ridge      | Single studio, 52 features                   | 0.32      |
+| v2.2.0  | **Ridge**  | **Multi-studio (12), 52 features, ensemble** | **0.999** |
+
+**Key Breakthrough:** v2.2.0's success comes from:
+
+- Multi-studio training data (12 studios vs 1)
+- Larger sample size (732 vs 71 training samples)
+- Better feature engineering (52 vs 8 features)
+- Same algorithm (Ridge) with better data = 1007% improvement!
+
+---
+
 ## 🎯 Training the Model
 
 ### **Step 1: Verify Data Exists**
@@ -522,8 +657,159 @@ curl -X POST http://localhost:8000/api/v1/predict/forward \
 | `/api/v1/health`          | GET    | Detailed health status         |
 | `/api/v1/predict/forward` | POST   | Predict revenue from levers    |
 | `/api/v1/predict/inverse` | POST   | Find levers for target revenue |
+| `/api/v1/predict/partial` | POST   | Predict subset of levers       |
 | `/api/v1/scenarios`       | POST   | Compare multiple scenarios     |
-| `/api/v1/insights`        | POST   | AI-powered recommendations     |
+
+### **🤖 AI Insights (New Feature)**
+
+All prediction endpoints now support **AI-powered business insights** using LangChain and OpenAI. This feature translates technical ML outputs into actionable business recommendations.
+
+#### **Enabling AI Insights**
+
+Add the query parameter `?include_ai_insights=true` to any prediction endpoint:
+
+```bash
+POST /api/v1/predict/forward?include_ai_insights=true
+POST /api/v1/predict/inverse?include_ai_insights=true
+POST /api/v1/predict/partial?include_ai_insights=true
+```
+
+#### **What AI Insights Provide**
+
+AI insights include:
+- **Executive Summary**: High-level overview in business language
+- **Key Drivers**: Main factors affecting predictions
+- **Recommendations**: Actionable steps to improve results
+- **Risks**: Potential concerns or challenges
+- **Confidence Explanation**: Plain-language interpretation of confidence scores
+
+#### **Technology Stack**
+
+- **Framework**: LangChain (v0.1.0)
+- **Model**: GPT-4o (configurable in config.yaml)
+- **Features**:
+  - PromptTemplates for consistent, structured prompts
+  - PydanticOutputParser for validated JSON responses
+  - LCEL (LangChain Expression Language) chains
+  - Error handling and fallback logic
+
+#### **Example Request**
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/predict/forward?include_ai_insights=true" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "studio_id": "STU001",
+    "levers": {
+      "retention_rate": 0.75,
+      "avg_ticket_price": 150.0,
+      "class_attendance_rate": 0.70,
+      "new_members": 20,
+      "staff_utilization_rate": 0.80,
+      "upsell_rate": 0.25,
+      "total_classes_held": 100,
+      "total_members": 180
+    },
+    "projection_months": 3
+  }'
+```
+
+#### **Example AI Insights Response**
+
+```json
+{
+  "scenario_id": "abc123...",
+  "studio_id": "STU001",
+  "predictions": [...],
+  "total_projected_revenue": 28500.00,
+  "average_confidence": 0.85,
+  "ai_insights": {
+    "executive_summary": "Your studio is projected to generate $28,500 in revenue over the next 3 months, representing a 12% increase from your current trajectory. This forecast has high confidence (85%) based on strong retention and stable attendance patterns.",
+    "key_drivers": [
+      "Retention rate (75%) is your strongest lever, contributing $8,200 to projected revenue",
+      "Class attendance at 70% is solid but has room for optimization - improving to 75% could add $2,100",
+      "Ticket price ($150) is well-positioned in the market and sustainable"
+    ],
+    "recommendations": [
+      "Focus on retention programs - your current 75% rate shows strong member loyalty, doubling down here has highest ROI",
+      "Consider adding 2-3 peak-hour classes to boost attendance from 70% to 75%",
+      "Explore premium packages to increase upsell rate from current 25%"
+    ],
+    "risks": [
+      "Member growth is modest at 20 per month - may need marketing investment to accelerate",
+      "Staff utilization at 80% is good but leaves limited capacity for growth spurts",
+      "Current ticket price is near market ceiling - price increases may face resistance"
+    ],
+    "confidence_explanation": "The 85% confidence score reflects 12 months of stable historical data and consistent patterns. The model has seen similar studio profiles and economic conditions, making this forecast highly reliable. Month 1 has highest confidence (87%), gradually decreasing for months 2-3 (85%, 82%)."
+  }
+}
+```
+
+#### **Setup Requirements**
+
+**1. Install LangChain Dependencies**
+
+```bash
+pip install langchain==0.1.0 langchain-openai==0.0.2 langchain-core==0.1.10
+```
+
+**2. Configure OpenAI API Key**
+
+Add to your `.env` file:
+
+```bash
+OPENAI_API_KEY=sk-your-openai-api-key-here
+```
+
+**3. Configure Settings (Optional)**
+
+Edit `config/config.yaml` to customize AI behavior:
+
+```yaml
+openai:
+  model: "gpt-4o"  # Options: gpt-4o (optimized), gpt-4, gpt-4-turbo, gpt-3.5-turbo
+  temperature: 0.7  # Creativity level (0.0-1.0)
+  max_tokens: 1000  # Maximum response length
+  max_retries: 3
+  timeout: 30
+
+langchain:
+  verbose: false  # Enable for debugging
+  enable_caching: true
+  cache_ttl: 3600
+```
+
+#### **Cost Considerations**
+
+| Model         | Cost per Request | Response Time | Use Case                   |
+| ------------- | ---------------- | ------------- | -------------------------- |
+| GPT-4o        | ~$0.015          | 1-2 seconds   | **Best quality & speed** ⭐ |
+| GPT-4         | ~$0.03           | 3-5 seconds   | High quality insights      |
+| GPT-4-turbo   | ~$0.01           | 1-2 seconds   | Balanced                   |
+| GPT-3.5-turbo | ~$0.002          | <1 second     | Cost-optimized             |
+
+**Recommendation**: Use GPT-4o for production (default) - it offers the best balance of quality, speed, and cost. GPT-4o is 2x faster than GPT-4 while being ~50% cheaper and maintaining superior quality.
+
+#### **Error Handling**
+
+If AI insights generation fails:
+- The API continues to work normally
+- SHAP explanations are still returned
+- A warning is logged but no error is thrown to the client
+- AI insights field is omitted from response
+
+Common failure reasons:
+- Missing or invalid `OPENAI_API_KEY`
+- OpenAI API rate limits exceeded
+- Network connectivity issues
+- OpenAI service outage
+
+#### **Performance Impact**
+
+- **Without AI insights**: Response time ~50-100ms
+- **With AI insights**: Response time ~3-5 seconds (due to OpenAI API call)
+- Consider using AI insights selectively for user-facing requests
+- Cache results when possible
 
 ### **Authentication**
 
@@ -544,6 +830,289 @@ Production (recommended):
 
 - 100 requests per minute per client
 - 1000 requests per hour per client
+
+---
+
+## 🔍 Model Explainability & Interpretability
+
+### **Overview**
+
+Version 2.2.0 includes advanced explainability features using **SHAP (SHapley Additive exPlanations)** to help you understand:
+- Why the model made a specific prediction
+- Which features/levers have the most impact
+- How changing levers affects revenue (what-if analysis)
+- Quick wins - small changes with high impact
+
+### **What is SHAP?**
+
+SHAP is an industry-standard method for explaining machine learning predictions:
+- Mathematically rigorous (based on game theory)
+- Shows exact contribution of each feature to the prediction
+- Works perfectly with linear models like Ridge Regression
+- Provides both global (overall) and local (per-prediction) explanations
+
+### **Explanation Features**
+
+All prediction endpoints now include automatic explanations:
+
+#### **1. Forward Predictions (`/api/v1/predict/forward`)**
+
+**Explanations Included:**
+- SHAP values for all 5 targets (3 revenue months + members + retention)
+- Top 5 feature drivers per target
+- Baseline vs actual prediction breakdown
+- Quick win recommendations (small changes, high impact)
+
+**Example Response:**
+
+```json
+{
+  "predictions": [...],
+  "explanation": {
+    "method": "SHAP (SHapley Additive exPlanations)",
+    "targets": {
+      "revenue_month_1": {
+        "prediction": 35000,
+        "base_value": 28500,
+        "top_5_drivers": [
+          {
+            "feature": "total_revenue",
+            "shap_value": 4200.50,
+            "importance_rank": 1
+          },
+          {
+            "feature": "retention_rate",
+            "shap_value": 1800.25,
+            "importance_rank": 2
+          }
+        ]
+      }
+    }
+  },
+  "quick_wins": [
+    {
+      "lever": "retention_rate",
+      "current_value": 0.75,
+      "recommended_value": 0.825,
+      "change_percent": 10,
+      "revenue_impact": 1200,
+      "effort": "medium",
+      "actionable": true
+    }
+  ]
+}
+```
+
+#### **2. Inverse Predictions (`/api/v1/predict/inverse`)**
+
+**Explanations Included:**
+- Why the recommended levers achieve the target revenue
+- SHAP values for the optimized lever combination
+- Feature contributions showing the mathematical reasoning
+
+**Example:**
+
+```json
+{
+  "target_revenue": 50000,
+  "achievable_revenue": 49800,
+  "recommended_levers": {
+    "retention_rate": 0.85,
+    "avg_ticket_price": 175
+  },
+  "explanation": {
+    "description": "SHAP-based explanation of why these optimized levers achieve the target revenue",
+    "details": {
+      "targets": {
+        "revenue_month_1": {
+          "top_5_drivers": [...]
+        }
+      }
+    }
+  }
+}
+```
+
+#### **3. Partial Predictions (`/api/v1/predict/partial`)**
+
+**Explanations Included:**
+- How input levers lead to predicted outputs
+- Feature importance for the complete lever set
+
+### **Understanding SHAP Values**
+
+**SHAP Value Interpretation:**
+
+- **Positive SHAP value (+)**: Feature increases the prediction
+- **Negative SHAP value (-)**: Feature decreases the prediction
+- **Magnitude**: Larger absolute value = stronger impact
+- **Sum**: baseline + sum(SHAP values) = final prediction
+
+**Example:**
+```
+Baseline (expected value): $28,500
++ total_revenue contribution: +$4,200
++ retention_rate contribution: +$1,800
++ prev_month_revenue contribution: +$1,500
++ other features: -$1,000
+= Final prediction: $35,000
+```
+
+### **Feature-to-Lever Mapping**
+
+Understanding what each feature represents:
+
+| Feature Name | Source | Description |
+|-------------|--------|-------------|
+| `total_members` | Direct lever | Current member count |
+| `retention_rate` | Direct lever | Monthly retention rate |
+| `avg_ticket_price` | Direct lever | Average membership price |
+| `total_revenue` | Calculated | membership + class + retail revenue |
+| `prev_month_revenue` | Historical | Last month's revenue (momentum) |
+| `3m_avg_revenue` | Historical | 3-month rolling average |
+| `retention_x_ticket` | Interaction | retention × price (LTV proxy) |
+| `estimated_ltv` | Calculated | ticket price × retention × 12 months |
+
+### **Quick Wins Analysis**
+
+Each forward prediction includes "quick wins" - actionable recommendations:
+
+**Quick Win Attributes:**
+- **Lever**: Which business lever to adjust
+- **Change**: Small adjustment (typically ≤10%)
+- **Revenue Impact**: Expected revenue increase
+- **Effort**: Implementation difficulty (low/medium/high)
+- **Actionable**: Whether change is realistic to implement
+
+**Example Use Case:**
+```
+Your current retention rate: 75%
+Quick win: Increase to 82.5% (+10%)
+Expected impact: +$1,200/month revenue
+Effort: Medium
+Action: Launch member engagement program
+```
+
+### **What-If Analysis with Counterfactuals**
+
+The Counterfactual Service enables scenario exploration:
+
+**Available in Code:**
+```python
+from src.api.services.counterfactual_service import CounterfactualService
+
+# Analyze lever sensitivity
+sensitivity = counterfactual_service.analyze_lever_sensitivity(
+    studio_id="STU001",
+    base_levers=current_levers,
+    change_percentages=[-20, -10, 10, 20]
+)
+
+# Find scenario to hit target
+scenario = counterfactual_service.find_target_revenue_scenario(
+    studio_id="STU001",
+    base_levers=current_levers,
+    target_revenue=50000
+)
+
+# Compare multiple scenarios
+comparison = counterfactual_service.compare_scenarios(
+    studio_id="STU001",
+    scenarios={
+        "conservative": {...},
+        "aggressive": {...},
+        "balanced": {...}
+    }
+)
+```
+
+### **Explainability Service API**
+
+**Available Methods:**
+
+```python
+# Get global feature importance
+importance = explainability_service.get_feature_importance_global(
+    target_idx=0  # 0=revenue_m1, 1=revenue_m2, etc.
+)
+
+# Explain specific prediction
+explanation = explainability_service.explain_prediction(
+    features_scaled=features_scaled,
+    levers=lever_values
+)
+
+# Get feature-to-lever mapping
+mapping = explainability_service.explain_feature_to_lever_mapping()
+```
+
+### **Regenerating SHAP Background Data**
+
+SHAP requires background data for baseline calculations. To regenerate:
+
+```bash
+# Retrain model (automatically saves SHAP background)
+python training/train_model_v2.2_multi_studio.py
+```
+
+**What Gets Saved:**
+- `data/models/shap_background_v2.2.0.pkl` - 100 representative samples
+- Used as baseline for SHAP expected values
+- Automatically loaded by ExplainabilityService
+
+### **Performance Impact**
+
+**Explanation Generation Time:**
+- SHAP calculation: ~20-40ms per prediction
+- Counterfactual analysis: ~50-100ms
+- Total overhead: <100ms (negligible for API)
+
+**Optimization:**
+- SHAP uses `LinearExplainer` (exact, fast for Ridge)
+- Background data cached in memory
+- Explanations generated only if service available
+
+### **Best Practices**
+
+**1. Focus on Top Drivers**
+- Look at top 5 features (rank 1-5)
+- Lower-ranked features have minimal impact
+
+**2. Leverage Quick Wins**
+- Start with low-effort, high-impact changes
+- Quick wins are pre-filtered for actionability
+
+**3. Understand Baseline**
+- Base value represents "expected" prediction
+- SHAP values show deviation from expected
+
+**4. Check Feature Mappings**
+- Some features are derived (not direct levers)
+- Use mapping to trace back to actionable levers
+
+**5. Validate with Domain Knowledge**
+- SHAP shows mathematical relationships
+- Always validate recommendations make business sense
+
+### **Troubleshooting Explanations**
+
+**Issue: Explanation is None**
+
+Possible causes:
+- SHAP background data not available
+- Run training script to generate background data
+
+**Issue: Unexpected Feature Importance**
+
+- Check feature engineering logic in `feature_service.py`
+- Verify lever values are in valid ranges
+- Review historical data quality
+
+**Issue: Quick Wins Not Appearing**
+
+- Ensure counterfactual_service is initialized
+- Check if current levers are already optimized
+- May indicate model is at local optimum
 
 ---
 

@@ -12,6 +12,9 @@ from src.models.model_registry import ModelRegistry
 from src.api.services.prediction_service import PredictionService
 from src.api.services.feature_service import FeatureService
 from src.api.services.historical_data_service import HistoricalDataService
+from src.api.services.explainability_service import ExplainabilityService
+from src.api.services.counterfactual_service import CounterfactualService
+from src.api.services.ai_insights_service import AIInsightsService
 from src.api.routes import predictions
 from src.api.schemas.responses import HealthCheckResponse
 
@@ -60,17 +63,49 @@ async def lifespan(app: FastAPI):
         )
         app_state['feature_service'] = feature_service
         logger.info("✓ Feature service initialized")
-        
+
+        # Explainability service
+        explainability_service = ExplainabilityService(
+            model=model_artifacts['model'],
+            scaler=model_artifacts['scaler'],
+            feature_names=model_artifacts['selected_features'],
+            background_data=model_artifacts.get('shap_background')
+        )
+        app_state['explainability_service'] = explainability_service
+        logger.info("✓ Explainability service initialized")
+
+        # Counterfactual service
+        counterfactual_service = CounterfactualService(
+            model=model_artifacts['model'],
+            scaler=model_artifacts['scaler'],
+            feature_service=feature_service,
+            historical_data_service=historical_service
+        )
+        app_state['counterfactual_service'] = counterfactual_service
+        logger.info("✓ Counterfactual service initialized")
+
+        # AI Insights service (LangChain + OpenAI)
+        ai_insights_service = AIInsightsService(
+            model_name="gpt-4o",  # Latest GPT-4 optimized model - faster and more cost-effective
+            temperature=0.7,
+            max_tokens=1000
+        )
+        app_state['ai_insights_service'] = ai_insights_service
+        logger.info("✓ AI Insights service initialized")
+
         # Prediction service
         prediction_service = PredictionService(
             model=model_artifacts['model'],
             scaler=model_artifacts['scaler'],
             feature_service=feature_service,
             historical_data_service=historical_service,
-            metadata=model_artifacts['metadata']
+            metadata=model_artifacts['metadata'],
+            explainability_service=explainability_service,
+            counterfactual_service=counterfactual_service,
+            ai_insights_service=ai_insights_service
         )
         app_state['prediction_service'] = prediction_service
-        
+
         # Set prediction service in routes
         predictions.set_prediction_service(prediction_service)
         logger.info("✓ Prediction service initialized")
