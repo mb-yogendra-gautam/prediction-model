@@ -1,0 +1,300 @@
+{
+  "model_version": "2.3.0",
+  "model_type": "xgboost",
+  "validation_timestamp": "2025-11-06T16:39:53.827774",
+  "model_metadata": {
+    "version": "2.3.0",
+    "model_type": "xgboost",
+    "algorithm": "XGBRegressor",
+    "hyperparameters": {
+      "n_estimators": 500,
+      "max_depth": 6,
+      "learning_rate": 0.03,
+      "subsample": 0.8,
+      "colsample_bytree": 0.8,
+      "reg_alpha": 0.5,
+      "reg_lambda": 1.0
+    },
+    "n_features": 79,
+    "n_targets": 14,
+    "training_date": "2025-11-06T15:19:09.390179",
+    "training_time_seconds": 81.2
+  },
+  "test_metrics": {
+    "overall_metrics": {
+      "R2": 0.9971,
+      "RMSE": 832.27,
+      "MAE": 350.07
+    },
+    "metrics_by_target": {
+      "Revenue Day 1": {
+        "RMSE": 45.74,
+        "MAE": 33.84,
+        "R2": 0.9927,
+        "MAPE": 3.12,
+        "Mean_Error": -2.63,
+        "Std_Error": 45.67,
+        "Max_Error": 207.38
+      },
+      "Revenue Day 3": {
+        "RMSE": 48.7,
+        "MAE": 36.66,
+        "R2": 0.9917,
+        "MAPE": 3.42,
+        "Mean_Error": 1.32,
+        "Std_Error": 48.68,
+        "Max_Error": 229.86
+      },
+      "Revenue Day 7": {
+        "RMSE": 55.99,
+        "MAE": 40.92,
+        "R2": 0.9891,
+        "MAPE": 3.81,
+        "Mean_Error": 3.2,
+        "Std_Error": 55.9,
+        "Max_Error": 240.3
+      },
+      "Attendance Day 7": {
+        "RMSE": 16.91,
+        "MAE": 12.48,
+        "R2": 0.7973,
+        "MAPE": 12.67,
+        "Mean_Error": -0.8,
+        "Std_Error": 16.89,
+        "Max_Error": 95.4
+      },
+      "Revenue Week 1": {
+        "RMSE": 241.76,
+        "MAE": 178.25,
+        "R2": 0.9958,
+        "MAPE": 2.3,
+        "Mean_Error": -21.12,
+        "Std_Error": 240.84,
+        "Max_Error": 1182.79
+      },
+      "Revenue Week 2": {
+        "RMSE": 316.41,
+        "MAE": 243.1,
+        "R2": 0.9928,
+        "MAPE": 3.18,
+        "Mean_Error": 37.45,
+        "Std_Error": 314.18,
+        "Max_Error": 1272.71
+      },
+      "Revenue Week 4": {
+        "RMSE": 438.44,
+        "MAE": 331.74,
+        "R2": 0.9861,
+        "MAPE": 4.29,
+        "Mean_Error": 144.57,
+        "Std_Error": 413.92,
+        "Max_Error": 1677.12
+      },
+      "Attendance Week 1": {
+        "RMSE": 61.81,
+        "MAE": 46.17,
+        "R2": 0.9189,
+        "MAPE": 6.37,
+        "Mean_Error": -7.23,
+        "Std_Error": 61.39,
+        "Max_Error": 259.84
+      },
+      "Revenue Month 1": {
+        "RMSE": 1411.95,
+        "MAE": 1072.05,
+        "R2": 0.9922,
+        "MAPE": 3.14,
+        "Mean_Error": 333.63,
+        "Std_Error": 1371.97,
+        "Max_Error": 5491.17
+      },
+      "Revenue Month 2": {
+        "RMSE": 1719.42,
+        "MAE": 1319.02,
+        "R2": 0.9884,
+        "MAPE": 3.96,
+        "Mean_Error": 233.65,
+        "Std_Error": 1703.48,
+        "Max_Error": 6394.98
+      },
+      "Revenue Month 3": {
+        "RMSE": 2093.95,
+        "MAE": 1573.31,
+        "R2": 0.9834,
+        "MAPE": 4.46,
+        "Mean_Error": -313.5,
+        "Std_Error": 2070.35,
+        "Max_Error": 8284.33
+      },
+      "Members Month 1": {
+        "RMSE": 5.89,
+        "MAE": 4.48,
+        "R2": 0.9939,
+        "MAPE": 2.66,
+        "Mean_Error": 0.31,
+        "Std_Error": 5.88,
+        "Max_Error": 23.49
+      },
+      "Members Month 3": {
+        "RMSE": 11.63,
+        "MAE": 8.94,
+        "R2": 0.9767,
+        "MAPE": 4.95,
+        "Mean_Error": -0.98,
+        "Std_Error": 11.59,
+        "Max_Error": 51.93
+      },
+      "Retention Month 3": {
+        "RMSE": 0.0,
+        "MAE": 0.0,
+        "R2": 0.9926,
+        "MAPE": 0.35,
+        "Mean_Error": 0.0,
+        "Std_Error": 0.0,
+        "Max_Error": 0.02
+      }
+    },
+    "horizon_metrics": {
+      "daily": {
+        "RMSE": 44.4,
+        "MAE": 30.97,
+        "R2": 0.9953
+      },
+      "weekly": {
+        "RMSE": 297.75,
+        "MAE": 199.82,
+        "R2": 0.9957
+      },
+      "monthly": {
+        "RMSE": 1247.32,
+        "MAE": 662.97,
+        "R2": 0.9964
+      }
+    }
+  },
+  "business_metrics": {
+    "predictions_within_5pct": 74.49,
+    "predictions_within_10pct": 97.55,
+    "predictions_within_15pct": 99.76,
+    "directional_accuracy": 71.51,
+    "business_impact_score": 80.81
+  },
+  "inference_performance": {
+    "p50_latency_ms": 23.34,
+    "p95_latency_ms": 36.59,
+    "p99_latency_ms": 75.45,
+    "mean_latency_ms": 26.88,
+    "std_latency_ms": 15.86
+  },
+  "model_size_mb": 29.2,
+  "feature_importance_top_20": [
+    {
+      "Feature": "rolling_7d_revenue",
+      "Importance": 0.44676926732063293,
+      "Rank": 1
+    },
+    {
+      "Feature": "day_momentum_revenue",
+      "Importance": 0.2654367983341217,
+      "Rank": 2
+    },
+    {
+      "Feature": "rolling_14d_revenue",
+      "Importance": 0.1926455795764923,
+      "Rank": 3
+    },
+    {
+      "Feature": "size_large",
+      "Importance": 0.061487480998039246,
+      "Rank": 4
+    },
+    {
+      "Feature": "daily_membership_revenue",
+      "Importance": 0.007784147281199694,
+      "Rank": 5
+    },
+    {
+      "Feature": "rolling_30d_revenue",
+      "Importance": 0.0033288421109318733,
+      "Rank": 6
+    },
+    {
+      "Feature": "is_saturday",
+      "Importance": 0.002306991955265403,
+      "Rank": 7
+    },
+    {
+      "Feature": "total_classes_held",
+      "Importance": 0.001589098828844726,
+      "Rank": 8
+    },
+    {
+      "Feature": "is_sunday",
+      "Importance": 0.001328905113041401,
+      "Rank": 9
+    },
+    {
+      "Feature": "daily_retail_revenue",
+      "Importance": 0.0011154927778989077,
+      "Rank": 10
+    },
+    {
+      "Feature": "total_members",
+      "Importance": 0.0010952051961794496,
+      "Rank": 11
+    },
+    {
+      "Feature": "daily_revenue",
+      "Importance": 0.0009014368406496942,
+      "Rank": 12
+    },
+    {
+      "Feature": "studio_age_days",
+      "Importance": 0.0007712524384260178,
+      "Rank": 13
+    },
+    {
+      "Feature": "is_january",
+      "Importance": 0.0006562171038240194,
+      "Rank": 14
+    },
+    {
+      "Feature": "day_of_week",
+      "Importance": 0.0005559738492593169,
+      "Rank": 15
+    },
+    {
+      "Feature": "is_friday",
+      "Importance": 0.00048769437125883996,
+      "Rank": 16
+    },
+    {
+      "Feature": "is_holiday_week",
+      "Importance": 0.00047750165686011314,
+      "Rank": 17
+    },
+    {
+      "Feature": "day_of_week_sin",
+      "Importance": 0.00041687607881613076,
+      "Rank": 18
+    },
+    {
+      "Feature": "attendance_x_classes",
+      "Importance": 0.0003976371663156897,
+      "Rank": 19
+    },
+    {
+      "Feature": "week_of_year",
+      "Importance": 0.00039582906174473464,
+      "Rank": 20
+    }
+  ],
+  "test_samples": 2208,
+  "success_criteria": {
+    "r2_threshold": 0.9,
+    "r2_achieved": true,
+    "mape_threshold": 10.0,
+    "business_score_threshold": 80.0,
+    "business_score_achieved": true
+  }
+}

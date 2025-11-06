@@ -1,0 +1,132 @@
+{
+  "model_type": "neural_network",
+  "cv_results": {
+    "r2_mean": 0.9842132555321298,
+    "r2_std": 0.013441100276572502,
+    "rmse_mean": 1381.3791489524463,
+    "rmse_std": 539.9958192531055,
+    "r2_scores": [
+      0.991298346360617,
+      0.978728726729318,
+      0.9602700265993812,
+      0.9956689487941708,
+      0.9951002291771618
+    ],
+    "rmse_scores": [
+      1314.616485677569,
+      2023.725118081755,
+      1955.0672760838725,
+      646.4603294204084,
+      967.026535498627
+    ]
+  },
+  "test_results": {
+    "metrics_by_target": {
+      "Revenue Day 1": {
+        "RMSE": 46.58,
+        "MAE": 35.57,
+        "R2": 0.9924,
+        "MAPE": 3.52
+      },
+      "Revenue Day 3": {
+        "RMSE": 48.77,
+        "MAE": 37.26,
+        "R2": 0.9917,
+        "MAPE": 3.58
+      },
+      "Revenue Day 7": {
+        "RMSE": 58.3,
+        "MAE": 43.79,
+        "R2": 0.9882,
+        "MAPE": 4.17
+      },
+      "Attendance Day 7": {
+        "RMSE": 16.66,
+        "MAE": 12.62,
+        "R2": 0.8032,
+        "MAPE": 13.03
+      },
+      "Revenue Week 1": {
+        "RMSE": 236.43,
+        "MAE": 179.16,
+        "R2": 0.996,
+        "MAPE": 2.45
+      },
+      "Revenue Week 2": {
+        "RMSE": 281.09,
+        "MAE": 213.32,
+        "R2": 0.9943,
+        "MAPE": 3.03
+      },
+      "Revenue Week 4": {
+        "RMSE": 391.86,
+        "MAE": 305.38,
+        "R2": 0.9889,
+        "MAPE": 4.53
+      },
+      "Attendance Week 1": {
+        "RMSE": 62.11,
+        "MAE": 48.0,
+        "R2": 0.9182,
+        "MAPE": 6.86
+      },
+      "Revenue Month 1": {
+        "RMSE": 1076.12,
+        "MAE": 844.75,
+        "R2": 0.9954,
+        "MAPE": 2.81
+      },
+      "Revenue Month 2": {
+        "RMSE": 2346.08,
+        "MAE": 1682.95,
+        "R2": 0.9784,
+        "MAPE": 5.39
+      },
+      "Revenue Month 3": {
+        "RMSE": 3174.09,
+        "MAE": 2134.92,
+        "R2": 0.9619,
+        "MAPE": 6.77
+      },
+      "Members Month 1": {
+        "RMSE": 5.82,
+        "MAE": 4.59,
+        "R2": 0.9941,
+        "MAPE": 2.79
+      },
+      "Members Month 3": {
+        "RMSE": 16.3,
+        "MAE": 11.78,
+        "R2": 0.9543,
+        "MAPE": 6.9
+      },
+      "Retention Month 3": {
+        "RMSE": 0.0,
+        "MAE": 0.0,
+        "R2": 0.9875,
+        "MAPE": 0.47
+      }
+    },
+    "overall_rmse": 1103.17,
+    "overall_r2": 0.9949,
+    "overall_mae": 396.72,
+    "inference_time_ms": 133.61,
+    "avg_inference_time_ms": 0.0605
+  },
+  "business_metrics": {
+    "predictions_within_5pct": 72.89,
+    "predictions_within_10pct": 92.43,
+    "predictions_within_15pct": 97.31,
+    "directional_accuracy": 68.57,
+    "business_impact_score": 77.89
+  },
+  "timestamp": "2025-11-06T16:52:25.912983",
+  "phase": "Phase 4 - Daily Multi-Horizon Data",
+  "training_samples": 18528,
+  "test_samples": 2208,
+  "n_studios_train": 12,
+  "n_studios_test": 12,
+  "n_features": 79,
+  "n_targets": 14,
+  "training_time_seconds": 1651.78
+}

@@ -1,0 +1,110 @@
+{
+  "model_type": "lightgbm",
+  "cv_results": {
+    "r2_mean": 0.9873678957601317,
+    "r2_std": 0.012725591617802495,
+    "rmse_mean": 1280.902529871892,
+    "rmse_std": 767.4594624649983
+  },
+  "test_results": {
+    "metrics_by_target": {
+      "Revenue Day 1": {
+        "RMSE": 45.6,
+        "MAE": 34.07,
+        "R2": 0.9928,
+        "MAPE": 3.15
+      },
+      "Revenue Day 3": {
+        "RMSE": 49.2,
+        "MAE": 36.82,
+        "R2": 0.9916,
+        "MAPE": 3.42
+      },
+      "Revenue Day 7": {
+        "RMSE": 56.49,
+        "MAE": 41.45,
+        "R2": 0.9889,
+        "MAPE": 3.77
+      },
+      "Attendance Day 7": {
+        "RMSE": 16.5,
+        "MAE": 12.24,
+        "R2": 0.807,
+        "MAPE": 12.51
+      },
+      "Revenue Week 1": {
+        "RMSE": 247.89,
+        "MAE": 187.05,
+        "R2": 0.9956,
+        "MAPE": 2.42
+      },
+      "Revenue Week 2": {
+        "RMSE": 353.45,
+        "MAE": 276.24,
+        "R2": 0.991,
+        "MAPE": 3.51
+      },
+      "Revenue Week 4": {
+        "RMSE": 501.67,
+        "MAE": 387.29,
+        "R2": 0.9818,
+        "MAPE": 4.86
+      },
+      "Attendance Week 1": {
+        "RMSE": 58.55,
+        "MAE": 43.51,
+        "R2": 0.9273,
+        "MAPE": 6.03
+      },
+      "Revenue Month 1": {
+        "RMSE": 1565.06,
+        "MAE": 1184.98,
+        "R2": 0.9904,
+        "MAPE": 3.37
+      },
+      "Revenue Month 2": {
+        "RMSE": 1798.13,
+        "MAE": 1389.19,
+        "R2": 0.9873,
+        "MAPE": 4.1
+      },
+      "Revenue Month 3": {
+        "RMSE": 2169.77,
+        "MAE": 1608.77,
+        "R2": 0.9822,
+        "MAPE": 4.62
+      },
+      "Members Month 1": {
+        "RMSE": 5.3,
+        "MAE": 4.15,
+        "R2": 0.9951,
+        "MAPE": 2.52
+      },
+      "Members Month 3": {
+        "RMSE": 10.94,
+        "MAE": 8.18,
+        "R2": 0.9794,
+        "MAPE": 4.77
+      },
+      "Retention Month 3": {
+        "RMSE": 0.0,
+        "MAE": 0.0,
+        "R2": 0.9929,
+        "MAPE": 0.34
+      }
+    },
+    "overall_rmse": 879.94,
+    "overall_r2": 0.9968,
+    "overall_mae": 372.42,
+    "inference_time_ms": 348.15,
+    "avg_inference_time_ms": 0.1577
+  },
+  "business_metrics": {
+    "predictions_within_5pct": 72.52,
+    "predictions_within_10pct": 96.88,
+    "directional_accuracy": 72.37,
+    "business_impact_score": 79.8
+  },
+  "timestamp": "2025-11-06T15:34:34.888536",
+  "training_time_seconds": 165.41
+}

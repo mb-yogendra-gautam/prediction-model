@@ -1,0 +1,289 @@
+{
+  "model_version": "2.3.0",
+  "model_type": "neural_network",
+  "validation_timestamp": "2025-11-06T18:00:57.316498",
+  "model_metadata": {
+    "version": "2.3.0",
+    "model_type": "neural_network",
+    "architecture": "79 \u2192 128 \u2192 64 \u2192 32 \u2192 16 \u2192 14",
+    "algorithm": "MLPRegressor",
+    "n_features": 79,
+    "feature_names": [
+      "day_of_week",
+      "is_weekend",
+      "is_monday",
+      "is_friday",
+      "is_saturday",
+      "is_sunday",
+      "is_holiday",
+      "is_holiday_week",
+      "is_january",
+      "is_summer_prep",
+      "month",
+      "day_of_month",
+      "week_of_year",
+      "daily_attendance",
+      "daily_revenue",
+      "daily_membership_revenue",
+      "daily_class_pack_revenue",
+      "daily_retail_revenue",
+      "total_members",
+      "new_members",
+      "churned_members",
+      "retention_rate",
+      "avg_ticket_price",
+      "total_classes_held",
+      "total_class_attendance",
+      "class_attendance_rate",
+      "staff_count",
+      "staff_utilization_rate",
+      "upsell_rate",
+      "rolling_7d_revenue",
+      "rolling_7d_attendance",
+      "rolling_7d_retention",
+      "rolling_14d_revenue",
+      "rolling_14d_attendance",
+      "rolling_30d_revenue",
+      "rolling_30d_attendance",
+      "rolling_30d_retention",
+      "day_momentum_revenue",
+      "day_momentum_attendance",
+      "weekday_vs_weekend_ratio",
+      "studio_age_days",
+      "location_urban",
+      "size_small",
+      "size_medium",
+      "size_large",
+      "price_low",
+      "price_medium",
+      "price_high",
+      "revenue_per_member",
+      "churn_rate",
+      "class_utilization",
+      "staff_per_member",
+      "estimated_ltv",
+      "membership_revenue_pct",
+      "class_pack_revenue_pct",
+      "retail_revenue_pct",
+      "revenue_per_attendance",
+      "classes_per_attendee",
+      "retention_x_ticket",
+      "attendance_x_classes",
+      "upsell_x_members",
+      "staff_util_x_members",
+      "weekend_revenue_impact",
+      "monday_revenue_impact",
+      "month_sin",
+      "month_cos",
+      "day_of_month_sin",
+      "day_of_month_cos",
+      "week_of_year_sin",
+      "week_of_year_cos",
+      "day_of_week_sin",
+      "day_of_week_cos",
+      "dod_revenue_growth",
+      "dod_attendance_growth",
+      "wow_revenue_growth",
+      "wow_attendance_growth",
+      "revenue_vs_7d_avg",
+      "attendance_vs_7d_avg",
+      "revenue_trend_momentum"
+    ],
+    "n_targets": 14,
+    "target_names": [
+      "Revenue Day 1",
+      "Revenue Day 3",
+      "Revenue Day 7",
+      "Attendance Day 7",
+      "Revenue Week 1",
+      "Revenue Week 2",
+      "Revenue Week 4",
+      "Attendance Week 1",
+      "Revenue Month 1",
+      "Revenue Month 2",
+      "Revenue Month 3",
+      "Members Month 1",
+      "Members Month 3",
+      "Retention Month 3"
+    ],
+    "training_date": "2025-11-06T16:52:26.235020",
+    "training_time_seconds": 1651.78,
+    "data_type": "daily_multi_horizon",
+    "phase": "Phase 4 - Daily Multi-Horizon Data"
+  },
+  "test_metrics": {
+    "overall_metrics": {
+      "R2": 0.9949,
+      "RMSE": 1103.17,
+      "MAE": 396.72
+    },
+    "metrics_by_target": {
+      "Revenue Day 1": {
+        "RMSE": 46.58,
+        "MAE": 35.57,
+        "R2": 0.9924,
+        "MAPE": 3.52,
+        "Mean_Error": 5.15,
+        "Std_Error": 46.29,
+        "Max_Error": 232.02
+      },
+      "Revenue Day 3": {
+        "RMSE": 48.77,
+        "MAE": 37.26,
+        "R2": 0.9917,
+        "MAPE": 3.58,
+        "Mean_Error": 7.17,
+        "Std_Error": 48.24,
+        "Max_Error": 214.15
+      },
+      "Revenue Day 7": {
+        "RMSE": 58.3,
+        "MAE": 43.79,
+        "R2": 0.9882,
+        "MAPE": 4.17,
+        "Mean_Error": 17.59,
+        "Std_Error": 55.58,
+        "Max_Error": 262.71
+      },
+      "Attendance Day 7": {
+        "RMSE": 16.66,
+        "MAE": 12.62,
+        "R2": 0.8032,
+        "MAPE": 13.03,
+        "Mean_Error": 1.63,
+        "Std_Error": 16.58,
+        "Max_Error": 83.08
+      },
+      "Revenue Week 1": {
+        "RMSE": 236.43,
+        "MAE": 179.16,
+        "R2": 0.996,
+        "MAPE": 2.45,
+        "Mean_Error": 70.38,
+        "Std_Error": 225.71,
+        "Max_Error": 960.53
+      },
+      "Revenue Week 2": {
+        "RMSE": 281.09,
+        "MAE": 213.32,
+        "R2": 0.9943,
+        "MAPE": 3.03,
+        "Mean_Error": 50.42,
+        "Std_Error": 276.53,
+        "Max_Error": 1384.6
+      },
+      "Revenue Week 4": {
+        "RMSE": 391.86,
+        "MAE": 305.38,
+        "R2": 0.9889,
+        "MAPE": 4.53,
+        "Mean_Error": 48.64,
+        "Std_Error": 388.83,
+        "Max_Error": 1507.61
+      },
+      "Attendance Week 1": {
+        "RMSE": 62.11,
+        "MAE": 48.0,
+        "R2": 0.9182,
+        "MAPE": 6.86,
+        "Mean_Error": 20.22,
+        "Std_Error": 58.72,
+        "Max_Error": 302.12
+      },
+      "Revenue Month 1": {
+        "RMSE": 1076.12,
+        "MAE": 844.75,
+        "R2": 0.9954,
+        "MAPE": 2.81,
+        "Mean_Error": 217.81,
+        "Std_Error": 1053.85,
+        "Max_Error": 4790.67
+      },
+      "Revenue Month 2": {
+        "RMSE": 2346.08,
+        "MAE": 1682.95,
+        "R2": 0.9784,
+        "MAPE": 5.39,
+        "Mean_Error": 560.25,
+        "Std_Error": 2278.21,
+        "Max_Error": 10327.67
+      },
+      "Revenue Month 3": {
+        "RMSE": 3174.09,
+        "MAE": 2134.92,
+        "R2": 0.9619,
+        "MAPE": 6.77,
+        "Mean_Error": 714.96,
+        "Std_Error": 3092.52,
+        "Max_Error": 14007.88
+      },
+      "Members Month 1": {
+        "RMSE": 5.82,
+        "MAE": 4.59,
+        "R2": 0.9941,
+        "MAPE": 2.79,
+        "Mean_Error": -0.07,
+        "Std_Error": 5.82,
+        "Max_Error": 21.62
+      },
+      "Members Month 3": {
+        "RMSE": 16.3,
+        "MAE": 11.78,
+        "R2": 0.9543,
+        "MAPE": 6.9,
+        "Mean_Error": 4.4,
+        "Std_Error": 15.7,
+        "Max_Error": 63.2
+      },
+      "Retention Month 3": {
+        "RMSE": 0.0,
+        "MAE": 0.0,
+        "R2": 0.9875,
+        "MAPE": 0.47,
+        "Mean_Error": 0.0,
+        "Std_Error": 0.0,
+        "Max_Error": 0.01
+      }
+    },
+    "horizon_metrics": {
+      "daily": {
+        "RMSE": 45.34,
+        "MAE": 32.31,
+        "R2": 0.9951
+      },
+      "weekly": {
+        "RMSE": 270.33,
+        "MAE": 186.46,
+        "R2": 0.9964
+      },
+      "monthly": {
+        "RMSE": 1670.2,
+        "MAE": 779.83,
+        "R2": 0.9935
+      }
+    }
+  },
+  "business_metrics": {
+    "predictions_within_5pct": 72.89,
+    "predictions_within_10pct": 92.43,
+    "predictions_within_15pct": 97.31,
+    "directional_accuracy": 68.57,
+    "business_impact_score": 77.89
+  },
+  "inference_performance": {
+    "p50_latency_ms": 3.0,
+    "p95_latency_ms": 6.09,
+    "p99_latency_ms": 8.48,
+    "mean_latency_ms": 3.27,
+    "std_latency_ms": 1.46
+  },
+  "model_size_mb": 6.88,
+  "test_samples": 2208,
+  "success_criteria": {
+    "r2_threshold": 0.9,
+    "r2_achieved": true,
+    "mape_threshold": 10.0,
+    "business_score_threshold": 80.0,
+    "business_score_achieved": false
+  }
+}

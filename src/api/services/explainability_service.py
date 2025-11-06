@@ -7,6 +7,19 @@ import logging
 from typing import Dict, List, Any, Optional, Tuple
 import shap
 
+# Import model types for type checking
+try:
+    import xgboost as xgb
+    HAS_XGBOOST = True
+except ImportError:
+    HAS_XGBOOST = False
+
+try:
+    import lightgbm as lgb
+    HAS_LIGHTGBM = True
+except ImportError:
+    HAS_LIGHTGBM = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -60,22 +73,14 @@ class ExplainabilityService:
         logger.info(f"Background data: {'Provided' if background_data is not None else 'None - using zero baseline'}")
 
     def _initialize_explainers(self):
-        """Initialize SHAP LinearExplainer for each of the 5 targets"""
+        """Initialize appropriate SHAP explainer for each of the 5 targets based on model type"""
         try:
             # For MultiOutputRegressor, we need separate explainer for each estimator
             for idx, target_name in enumerate(self.TARGET_NAMES):
                 estimator = self.model.estimators_[idx]
-
-                # LinearExplainer is fast and exact for Ridge regression
-                if self.background_data is not None:
-                    explainer = shap.LinearExplainer(estimator, self.background_data)
-                else:
-                    # Use zero baseline if no background data
-                    explainer = shap.LinearExplainer(
-                        estimator,
-                        np.zeros((1, len(self.feature_names)))
-                    )
-
+                
+                # Detect model type and choose appropriate explainer
+                explainer = self._create_explainer_for_model(estimator, target_name)
                 self.explainers[target_name] = explainer
 
             logger.info(f"Successfully initialized {len(self.explainers)} SHAP explainers")
@@ -83,6 +88,52 @@ class ExplainabilityService:
         except Exception as e:
             logger.error(f"Error initializing SHAP explainers: {e}")
             raise
+    
+    def _create_explainer_for_model(self, estimator, target_name: str):
+        """
+        Create the appropriate SHAP explainer based on model type
+        
+        Args:
+            estimator: The model estimator
+            target_name: Name of the target for logging
+            
+        Returns:
+            SHAP explainer instance
+        """
+        model_type = type(estimator).__name__
+        logger.info(f"Creating explainer for {target_name} (model type: {model_type})")
+        
+        # Check for tree-based models (XGBoost, LightGBM)
+        if HAS_XGBOOST and isinstance(estimator, (xgb.XGBRegressor, xgb.sklearn.XGBRegressor)):
+            logger.info(f"  Using TreeExplainer for XGBoost model")
+            return shap.TreeExplainer(estimator)
+        
+        elif HAS_LIGHTGBM and isinstance(estimator, (lgb.LGBMRegressor, lgb.sklearn.LGBMRegressor)):
+            logger.info(f"  Using TreeExplainer for LightGBM model")
+            return shap.TreeExplainer(estimator)
+        
+        # Check for linear models (Ridge, LinearRegression, etc.)
+        elif hasattr(estimator, 'coef_') and hasattr(estimator, 'intercept_'):
+            logger.info(f"  Using LinearExplainer for linear model")
+            if self.background_data is not None:
+                return shap.LinearExplainer(estimator, self.background_data)
+            else:
+                # Use zero baseline if no background data
+                return shap.LinearExplainer(
+                    estimator,
+                    np.zeros((1, len(self.feature_names)))
+                )
+        
+        # Fallback to KernelExplainer for neural networks or unknown models
+        else:
+            logger.info(f"  Using KernelExplainer (model-agnostic) for {model_type}")
+            # For KernelExplainer, we need a predict function and background data
+            if self.background_data is not None:
+                background = self.background_data[:100]  # Use sample for efficiency
+            else:
+                background = np.zeros((10, len(self.feature_names)))
+            
+            return shap.KernelExplainer(estimator.predict, background)
 
     def explain_prediction(
         self,

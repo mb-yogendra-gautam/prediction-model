@@ -15,7 +15,9 @@ from src.api.services.historical_data_service import HistoricalDataService
 from src.api.services.explainability_service import ExplainabilityService
 from src.api.services.counterfactual_service import CounterfactualService
 from src.api.services.ai_insights_service import AIInsightsService
+from src.api.services.model_cache_service import ModelCacheManager
 from src.api.routes import predictions
+from src.api.routes import model_metadata
 from src.api.schemas.responses import HealthCheckResponse
 
 # Configure logging
@@ -38,51 +40,19 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 60)
     
     try:
-        # Load model
-        logger.info("Loading model artifacts...")
+        # Initialize model registry
+        logger.info("Initializing model registry...")
         registry = ModelRegistry(base_dir="data/models")
-        model_artifacts = registry.load_model(version="2.2.0")
-        app_state['model_artifacts'] = model_artifacts
         app_state['registry'] = registry
+        logger.info("✓ Model registry initialized")
         
-        logger.info(f"✓ Model version: {model_artifacts['version']}")
-        logger.info(f"✓ Model type: {model_artifacts['metadata'].get('best_model', 'unknown')}")
-        logger.info(f"✓ Number of features: {model_artifacts['metadata'].get('n_features', 'unknown')}")
-        
-        # Initialize services
-        logger.info("Initializing services...")
+        # Initialize services (shared across all models)
+        logger.info("Initializing shared services...")
         
         # Historical data service
         historical_service = HistoricalDataService()
         app_state['historical_service'] = historical_service
         logger.info("✓ Historical data service initialized")
-        
-        # Feature service
-        feature_service = FeatureService(
-            selected_features=model_artifacts['selected_features']
-        )
-        app_state['feature_service'] = feature_service
-        logger.info("✓ Feature service initialized")
-
-        # Explainability service
-        explainability_service = ExplainabilityService(
-            model=model_artifacts['model'],
-            scaler=model_artifacts['scaler'],
-            feature_names=model_artifacts['selected_features'],
-            background_data=model_artifacts.get('shap_background')
-        )
-        app_state['explainability_service'] = explainability_service
-        logger.info("✓ Explainability service initialized")
-
-        # Counterfactual service
-        counterfactual_service = CounterfactualService(
-            model=model_artifacts['model'],
-            scaler=model_artifacts['scaler'],
-            feature_service=feature_service,
-            historical_data_service=historical_service
-        )
-        app_state['counterfactual_service'] = counterfactual_service
-        logger.info("✓ Counterfactual service initialized")
 
         # AI Insights service (LangChain + OpenAI)
         ai_insights_service = AIInsightsService(
@@ -92,23 +62,57 @@ async def lifespan(app: FastAPI):
         )
         app_state['ai_insights_service'] = ai_insights_service
         logger.info("✓ AI Insights service initialized")
-
-        # Prediction service
-        prediction_service = PredictionService(
-            model=model_artifacts['model'],
-            scaler=model_artifacts['scaler'],
-            feature_service=feature_service,
+        
+        # Initialize Model Cache Manager
+        logger.info("Initializing model cache manager...")
+        model_cache_manager = ModelCacheManager(
+            registry=registry,
             historical_data_service=historical_service,
-            metadata=model_artifacts['metadata'],
-            explainability_service=explainability_service,
-            counterfactual_service=counterfactual_service,
-            ai_insights_service=ai_insights_service
+            ai_insights_service=ai_insights_service,
+            max_cache_size=5
         )
+        app_state['model_cache_manager'] = model_cache_manager
+        logger.info("✓ Model cache manager initialized")
+        
+        # Preload all latest models for fast initial responses
+        logger.info("Preloading latest models...")
+        
+        # Ridge v2.2.0
+        logger.info("  - Preloading Ridge v2.2.0...")
+        model_cache_manager.preload_model("ridge", "2.2.0")
+        logger.info("    ✓ Ridge v2.2.0 preloaded")
+
+        # Ridge v2.3.0
+        logger.info("  - Preloading Ridge v2.3.0...")
+        model_cache_manager.preload_model("ridge", "2.3.0")
+        logger.info("    ✓ Ridge v2.3.0 preloaded")
+
+        # XGBoost v2.3.0
+        logger.info("  - Preloading XGBoost v2.3.0...")
+        model_cache_manager.preload_model("xgboost", "2.3.0")
+        logger.info("    ✓ XGBoost v2.3.0 preloaded")
+        
+        # LightGBM v2.3.0
+        logger.info("  - Preloading LightGBM v2.3.0...")
+        model_cache_manager.preload_model("lightgbm", "2.3.0")
+        logger.info("    ✓ LightGBM v2.3.0 preloaded")
+        
+        # Neural Network v2.3.0
+        logger.info("  - Preloading Neural Network v2.3.0...")
+        model_cache_manager.preload_model("neural_network", "2.3.0")
+        logger.info("    ✓ Neural Network v2.3.0 preloaded")
+        
+        logger.info("✓ All 5 models preloaded successfully")
+        
+        # Get default prediction service for backward compatibility
+        prediction_service = model_cache_manager.get_prediction_service("ridge", "2.2.0")
         app_state['prediction_service'] = prediction_service
 
-        # Set prediction service in routes
-        predictions.set_prediction_service(prediction_service)
-        logger.info("✓ Prediction service initialized")
+        # Set services in routes
+        predictions.set_prediction_service(prediction_service)  # Backward compatibility
+        predictions.set_model_cache_manager(model_cache_manager)
+        model_metadata.set_model_cache_manager(model_cache_manager)
+        logger.info("✓ Prediction services initialized")
         
         logger.info("=" * 60)
         logger.info("API startup complete! Server ready to accept requests.")
@@ -151,6 +155,12 @@ app.include_router(
     tags=["Predictions"]
 )
 
+app.include_router(
+    model_metadata.router,
+    prefix="/api/v1/models",
+    tags=["Model Metadata"]
+)
+
 
 @app.get("/", tags=["Health"])
 async def root():
@@ -170,25 +180,30 @@ async def health_check():
     
     Returns:
     - Service status
-    - Loaded model information
+    - Default model information
     - Available model versions
+    - Cache statistics
     """
     try:
-        model_artifacts = app_state.get('model_artifacts', {})
-        metadata = model_artifacts.get('metadata', {})
+        cache_manager = app_state.get('model_cache_manager')
         registry = app_state.get('registry')
         
-        # Get available versions
-        available_versions = []
+        # Get cache statistics
+        cache_stats = cache_manager.get_cache_stats() if cache_manager else {}
+        
+        # Get available models
+        available_models = []
         if registry:
-            available_versions = [v['version'] for v in registry.list_available_versions()]
+            available_models = registry.list_available_models()
         
         return {
             "status": "healthy",
-            "model_version": metadata.get('version', 'unknown'),
-            "model_type": metadata.get('best_model', 'unknown'),
-            "n_features": metadata.get('n_features', 0),
-            "available_versions": available_versions,
+            "model_version": "2.2.0",  # Default model version
+            "model_type": "ridge",  # Default model type
+            "n_features": 15,  # Ridge v2.2.0 features
+            "available_models": len(available_models),
+            "cached_models": cache_stats.get('cached_models', 0),
+            "cache_hit_rate": cache_stats.get('hit_rate_percent', 0),
             "timestamp": datetime.now().isoformat()
         }
     except Exception as e:
@@ -198,7 +213,9 @@ async def health_check():
             "model_version": "unknown",
             "model_type": "unknown",
             "n_features": 0,
-            "available_versions": [],
+            "available_models": 0,
+            "cached_models": 0,
+            "cache_hit_rate": 0,
             "timestamp": datetime.now().isoformat()
         }
 

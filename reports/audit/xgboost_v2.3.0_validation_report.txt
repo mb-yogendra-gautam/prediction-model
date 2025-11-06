@@ -1,0 +1,169 @@
+================================================================================
+XGBOOST MODEL v2.3.0 - COMPREHENSIVE VALIDATION REPORT
+================================================================================
+
+Validation Date: 2025-11-06 16:39:53
+Model Type: XGBoost MultiOutputRegressor
+Version: 2.3.0
+Test Samples: 2208
+
+--------------------------------------------------------------------------------
+MODEL CONFIGURATION
+--------------------------------------------------------------------------------
+Features: 79
+Targets: 14
+Algorithm: XGBRegressor
+Training Date: 2025-11-06T15:19:09.390179
+Training Time: 81.2s
+
+Hyperparameters:
+  - n_estimators: 500
+  - max_depth: 6
+  - learning_rate: 0.03
+  - subsample: 0.8
+  - colsample_bytree: 0.8
+  - reg_alpha: 0.5
+  - reg_lambda: 1.0
+
+--------------------------------------------------------------------------------
+OVERALL PERFORMANCE METRICS
+--------------------------------------------------------------------------------
+R² Score:        0.9971
+RMSE:            832.27
+MAE:             350.07
+
+--------------------------------------------------------------------------------
+PERFORMANCE BY PREDICTION HORIZON
+--------------------------------------------------------------------------------
+
+DAILY:
+  R²:   0.9953
+  RMSE: 44.40
+  MAE:  30.97
+
+WEEKLY:
+  R²:   0.9957
+  RMSE: 297.75
+  MAE:  199.82
+
+MONTHLY:
+  R²:   0.9964
+  RMSE: 1247.32
+  MAE:  662.97
+
+--------------------------------------------------------------------------------
+METRICS BY TARGET
+--------------------------------------------------------------------------------
+
+Revenue Day 1:
+  RMSE:      45.74  |  MAE:      33.84
+  R²:       0.9927  |  MAPE:      3.12%
+  Mean Error:   -2.63  |  Std Error:   45.67
+
+Revenue Day 3:
+  RMSE:      48.70  |  MAE:      36.66
+  R²:       0.9917  |  MAPE:      3.42%
+  Mean Error:    1.32  |  Std Error:   48.68
+
+Revenue Day 7:
+  RMSE:      55.99  |  MAE:      40.92
+  R²:       0.9891  |  MAPE:      3.81%
+  Mean Error:    3.20  |  Std Error:   55.90
+
+Attendance Day 7:
+  RMSE:      16.91  |  MAE:      12.48
+  R²:       0.7973  |  MAPE:     12.67%
+  Mean Error:   -0.80  |  Std Error:   16.89
+
+Revenue Week 1:
+  RMSE:     241.76  |  MAE:     178.25
+  R²:       0.9958  |  MAPE:      2.30%
+  Mean Error:  -21.12  |  Std Error:  240.84
+
+Revenue Week 2:
+  RMSE:     316.41  |  MAE:     243.10
+  R²:       0.9928  |  MAPE:      3.18%
+  Mean Error:   37.45  |  Std Error:  314.18
+
+Revenue Week 4:
+  RMSE:     438.44  |  MAE:     331.74
+  R²:       0.9861  |  MAPE:      4.29%
+  Mean Error:  144.57  |  Std Error:  413.92
+
+Attendance Week 1:
+  RMSE:      61.81  |  MAE:      46.17
+  R²:       0.9189  |  MAPE:      6.37%
+  Mean Error:   -7.23  |  Std Error:   61.39
+
+Revenue Month 1:
+  RMSE:    1411.95  |  MAE:    1072.05
+  R²:       0.9922  |  MAPE:      3.14%
+  Mean Error:  333.63  |  Std Error: 1371.97
+
+Revenue Month 2:
+  RMSE:    1719.42  |  MAE:    1319.02
+  R²:       0.9884  |  MAPE:      3.96%
+  Mean Error:  233.65  |  Std Error: 1703.48
+
+Revenue Month 3:
+  RMSE:    2093.95  |  MAE:    1573.31
+  R²:       0.9834  |  MAPE:      4.46%
+  Mean Error: -313.50  |  Std Error: 2070.35
+
+Members Month 1:
+  RMSE:       5.89  |  MAE:       4.48
+  R²:       0.9939  |  MAPE:      2.66%
+  Mean Error:    0.31  |  Std Error:    5.88
+
+Members Month 3:
+  RMSE:      11.63  |  MAE:       8.94
+  R²:       0.9767  |  MAPE:      4.95%
+  Mean Error:   -0.98  |  Std Error:   11.59
+
+Retention Month 3:
+  RMSE:       0.00  |  MAE:       0.00
+  R²:       0.9926  |  MAPE:      0.35%
+  Mean Error:    0.00  |  Std Error:    0.00
+
+--------------------------------------------------------------------------------
+BUSINESS METRICS
+--------------------------------------------------------------------------------
+Predictions within 5%:    74.49%
+Predictions within 10%:   97.55%
+Predictions within 15%:   99.76%
+Directional Accuracy:     71.51%
+Business Impact Score:    80.81/100
+
+--------------------------------------------------------------------------------
+INFERENCE PERFORMANCE
+--------------------------------------------------------------------------------
+Mean Latency:     26.88ms
+P50 Latency:      23.34ms
+P95 Latency:      36.59ms
+P99 Latency:      75.45ms
+Model Size:       29.20 MB
+
+--------------------------------------------------------------------------------
+TOP 10 MOST IMPORTANT FEATURES
+--------------------------------------------------------------------------------
+ 1. rolling_7d_revenue                       0.446769
+ 2. day_momentum_revenue                     0.265437
+ 3. rolling_14d_revenue                      0.192646
+ 4. size_large                               0.061487
+ 5. daily_membership_revenue                 0.007784
+ 6. rolling_30d_revenue                      0.003329
+ 7. is_saturday                              0.002307
+ 8. total_classes_held                       0.001589
+ 9. is_sunday                                0.001329
+10. daily_retail_revenue                     0.001115
+
+--------------------------------------------------------------------------------
+SUCCESS CRITERIA ASSESSMENT
+--------------------------------------------------------------------------------
+✓ R² > 0.90:          PASS (0.9971)
+✓ Business Score > 80: PASS (80.81)
+✓ Inference < 100ms:    PASS (36.59ms)
+
+================================================================================
+VALIDATION COMPLETE
+================================================================================

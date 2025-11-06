@@ -131,10 +131,31 @@ class PredictionService:
             except Exception as e:
                 logger.warning(f"Failed to generate quick wins: {e}")
 
+        # Parse predictions based on model version
+        horizons = request_data.get('horizons', ['monthly'])  # Default to monthly only
+
+        if self.version == "2.3.0":
+            # v2.3.0: 14 targets (daily/weekly/monthly)
+            return self._parse_v2_3_predictions(predictions, horizons, studio_id, levers, explanation, quick_wins, include_ai_insights)
+        else:
+            # v2.2.0: 5 targets (monthly only)
+            return self._parse_v2_2_predictions(predictions, projection_months, studio_id, levers, explanation, quick_wins, include_ai_insights)
+
+    def _parse_v2_2_predictions(
+        self,
+        predictions,
+        projection_months,
+        studio_id,
+        levers,
+        explanation,
+        quick_wins,
+        include_ai_insights
+    ) -> Dict:
+        """Parse v2.2.0 predictions (5 monthly targets)"""
         # predictions shape: [revenue_month_1, revenue_month_2, revenue_month_3, member_count_month_3, retention_rate_month_3]
         monthly_predictions = []
         total_revenue = 0.0
-        
+
         for i in range(min(projection_months, 3)):
             revenue = float(predictions[i])
             
@@ -767,6 +788,246 @@ class PredictionService:
                     'expected_impact': float(expected_impact * (0.5 - i * 0.1)),  # Distribute impact
                     'timeline_weeks': template['timeline_weeks']
                 })
-        
+
         return action_items
+
+    def _parse_v2_3_predictions(
+        self,
+        predictions,
+        horizons: List[str],
+        studio_id,
+        levers,
+        explanation,
+        quick_wins,
+        include_ai_insights
+    ) -> Dict:
+        """
+        Parse v2.3.0 predictions (14 targets) and filter by requested horizons
+
+        Target indices:
+        [0-3]: Daily (revenue_day_1, revenue_day_3, revenue_day_7, attendance_day_7)
+        [4-7]: Weekly (revenue_week_1, revenue_week_2, revenue_week_4, attendance_week_1)
+        [8-13]: Monthly (revenue_month_1, revenue_month_2, revenue_month_3, members_month_1, members_month_3, retention_month_3)
+
+        Args:
+            predictions: Array of 14 prediction values
+            horizons: List of horizons to include ['daily', 'weekly', 'monthly']
+            studio_id: Studio identifier
+            levers: Input business levers
+            explanation: SHAP explanation object
+            quick_wins: List of quick win recommendations
+            include_ai_insights: Whether to include AI-generated insights
+
+        Returns:
+            Dictionary with filtered predictions by horizon
+        """
+        from datetime import datetime, timedelta
+
+        # Base response structure
+        response = {
+            'scenario_id': str(uuid.uuid4()),
+            'studio_id': studio_id,
+            'model_info': {
+                'model_type': getattr(self, 'model_type', 'ridge'),
+                'version': getattr(self, 'model_version', '2.3.0'),
+                'prediction_granularity': 'daily',
+                'n_targets': 14
+            },
+            'timestamp': datetime.now().isoformat(),
+            'business_levers': levers
+        }
+
+        # Calculate dates for different horizons
+        today = datetime.now().date()
+
+        # Daily predictions (indices 0-3)
+        if 'daily' in horizons:
+            daily_predictions = {
+                'horizon': 'daily',
+                'predictions': [
+                    {
+                        'target': 'revenue_day_1',
+                        'date': (today + timedelta(days=1)).isoformat(),
+                        'value': round(float(predictions[0]), 2),
+                        'unit': 'USD'
+                    },
+                    {
+                        'target': 'revenue_day_3',
+                        'date': (today + timedelta(days=3)).isoformat(),
+                        'value': round(float(predictions[1]), 2),
+                        'unit': 'USD'
+                    },
+                    {
+                        'target': 'revenue_day_7',
+                        'date': (today + timedelta(days=7)).isoformat(),
+                        'value': round(float(predictions[2]), 2),
+                        'unit': 'USD'
+                    },
+                    {
+                        'target': 'attendance_day_7',
+                        'date': (today + timedelta(days=7)).isoformat(),
+                        'value': int(predictions[3]),
+                        'unit': 'visits'
+                    }
+                ],
+                'summary': {
+                    'avg_daily_revenue': round((float(predictions[0]) + float(predictions[1]) + float(predictions[2])) / 3, 2),
+                    'week_7_attendance': int(predictions[3])
+                }
+            }
+            response['daily'] = daily_predictions
+
+        # Weekly predictions (indices 4-7)
+        if 'weekly' in horizons:
+            weekly_predictions = {
+                'horizon': 'weekly',
+                'predictions': [
+                    {
+                        'target': 'revenue_week_1',
+                        'week': 1,
+                        'date_range': {
+                            'start': (today + timedelta(days=1)).isoformat(),
+                            'end': (today + timedelta(days=7)).isoformat()
+                        },
+                        'value': round(float(predictions[4]), 2),
+                        'unit': 'USD'
+                    },
+                    {
+                        'target': 'revenue_week_2',
+                        'week': 2,
+                        'date_range': {
+                            'start': (today + timedelta(days=8)).isoformat(),
+                            'end': (today + timedelta(days=14)).isoformat()
+                        },
+                        'value': round(float(predictions[5]), 2),
+                        'unit': 'USD'
+                    },
+                    {
+                        'target': 'revenue_week_4',
+                        'week': 4,
+                        'date_range': {
+                            'start': (today + timedelta(days=22)).isoformat(),
+                            'end': (today + timedelta(days=28)).isoformat()
+                        },
+                        'value': round(float(predictions[6]), 2),
+                        'unit': 'USD'
+                    },
+                    {
+                        'target': 'attendance_week_1',
+                        'week': 1,
+                        'date_range': {
+                            'start': (today + timedelta(days=1)).isoformat(),
+                            'end': (today + timedelta(days=7)).isoformat()
+                        },
+                        'value': int(predictions[7]),
+                        'unit': 'visits'
+                    }
+                ],
+                'summary': {
+                    'avg_weekly_revenue': round((float(predictions[4]) + float(predictions[5]) + float(predictions[6])) / 3, 2),
+                    'week_1_attendance': int(predictions[7])
+                }
+            }
+            response['weekly'] = weekly_predictions
+
+        # Monthly predictions (indices 8-13) - always included for backward compatibility
+        monthly_predictions = {
+            'horizon': 'monthly',
+            'predictions': [
+                {
+                    'target': 'revenue_month_1',
+                    'month': 1,
+                    'date_range': {
+                        'start': (today + timedelta(days=1)).isoformat(),
+                        'end': (today + timedelta(days=30)).isoformat()
+                    },
+                    'value': round(float(predictions[8]), 2),
+                    'unit': 'USD'
+                },
+                {
+                    'target': 'revenue_month_2',
+                    'month': 2,
+                    'date_range': {
+                        'start': (today + timedelta(days=31)).isoformat(),
+                        'end': (today + timedelta(days=60)).isoformat()
+                    },
+                    'value': round(float(predictions[9]), 2),
+                    'unit': 'USD'
+                },
+                {
+                    'target': 'revenue_month_3',
+                    'month': 3,
+                    'date_range': {
+                        'start': (today + timedelta(days=61)).isoformat(),
+                        'end': (today + timedelta(days=90)).isoformat()
+                    },
+                    'value': round(float(predictions[10]), 2),
+                    'unit': 'USD'
+                },
+                {
+                    'target': 'members_month_1',
+                    'month': 1,
+                    'value': int(predictions[11]),
+                    'unit': 'members'
+                },
+                {
+                    'target': 'members_month_3',
+                    'month': 3,
+                    'value': int(predictions[12]),
+                    'unit': 'members'
+                },
+                {
+                    'target': 'retention_month_3',
+                    'month': 3,
+                    'value': round(float(predictions[13]), 4),
+                    'unit': 'rate'
+                }
+            ],
+            'summary': {
+                'total_3month_revenue': round(float(predictions[8]) + float(predictions[9]) + float(predictions[10]), 2),
+                'avg_monthly_revenue': round((float(predictions[8]) + float(predictions[9]) + float(predictions[10])) / 3, 2),
+                'month_3_members': int(predictions[12]),
+                'month_3_retention': round(float(predictions[13]), 4)
+            }
+        }
+        response['monthly'] = monthly_predictions
+
+        # Add explainability if available
+        if explanation:
+            response['explainability'] = {
+                'shap_values': explanation.get('shap_values', []),
+                'feature_names': explanation.get('feature_names', []),
+                'base_value': explanation.get('base_value', 0),
+                'feature_contributions': explanation.get('top_features', [])
+            }
+
+        # Add quick wins if available
+        if quick_wins:
+            response['quick_wins'] = quick_wins
+
+        # Add AI insights if requested
+        if include_ai_insights and self.ai_insights_service:
+            try:
+                # Use monthly predictions for AI insights
+                ai_context = {
+                    'revenue_month_1': float(predictions[8]),
+                    'revenue_month_2': float(predictions[9]),
+                    'revenue_month_3': float(predictions[10]),
+                    'members_month_1': int(predictions[11]),
+                    'members_month_3': int(predictions[12]),
+                    'retention_month_3': float(predictions[13])
+                }
+
+                ai_insights = self.ai_insights_service.generate_prediction_insights(
+                    predictions=ai_context,
+                    business_levers=levers,
+                    shap_explanation=explanation
+                )
+                response['ai_insights'] = ai_insights
+
+            except Exception as e:
+                logger.warning(f"Failed to generate AI insights: {e}")
+                response['ai_insights'] = None
+
+        return response
 

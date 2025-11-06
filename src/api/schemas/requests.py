@@ -24,6 +24,12 @@ class ForwardPredictionRequest(BaseModel):
     studio_id: str = Field(..., description="Unique studio identifier")
     levers: LeverInputs
     projection_months: int = Field(default=3, ge=1, le=12, description="Number of months to project (1-12)")
+    model_type: Optional[str] = Field(default=None, description="Model type: 'ridge', 'xgboost', 'lightgbm', 'neural_network' (default: 'ridge')")
+    model_version: Optional[str] = Field(default=None, description="Model version: '2.2.0', '2.3.0' (default: '2.2.0')")
+    horizons: Optional[List[str]] = Field(
+        default=['monthly'],
+        description="Prediction horizons for v2.3.0 models: ['daily', 'weekly', 'monthly']. For v2.2.0, only 'monthly' is supported."
+    )
 
     class Config:
         json_schema_extra = {
@@ -39,7 +45,10 @@ class ForwardPredictionRequest(BaseModel):
                     "total_classes_held": 120,
                     "total_members": 200
                 },
-                "projection_months": 3
+                "projection_months": 3,
+                "model_type": "xgboost",
+                "model_version": "2.3.0",
+                "horizons": ["daily", "weekly", "monthly"]
             }
         }
 
@@ -62,6 +71,8 @@ class InversePredictionRequest(BaseModel):
     current_state: LeverInputs = Field(..., description="Current state of all levers")
     constraints: Optional[OptimizationConstraints] = Field(None, description="Optimization constraints")
     target_months: int = Field(default=3, ge=1, le=12, description="Time horizon for target (1-12 months)")
+    model_type: Optional[str] = Field(default=None, description="Model type: 'ridge', 'xgboost', 'lightgbm', 'neural_network' (default: 'ridge')")
+    model_version: Optional[str] = Field(default=None, description="Model version: '2.2.0', '2.3.0' (default: '2.2.0')")
 
     class Config:
         json_schema_extra = {
@@ -83,7 +94,9 @@ class InversePredictionRequest(BaseModel):
                     "max_ticket_increase": 20.0,
                     "max_new_members_increase": 10
                 },
-                "target_months": 3
+                "target_months": 3,
+                "model_type": "ridge",
+                "model_version": "2.2.0"
             }
         }
 
@@ -93,6 +106,8 @@ class PartialPredictionRequest(BaseModel):
     studio_id: str = Field(..., description="Unique studio identifier")
     input_levers: Dict[str, float] = Field(..., description="Known lever values")
     output_levers: List[str] = Field(..., description="Lever names to predict")
+    model_type: Optional[str] = Field(default=None, description="Model type: 'ridge', 'xgboost', 'lightgbm', 'neural_network' (default: 'ridge')")
+    model_version: Optional[str] = Field(default=None, description="Model version: '2.2.0', '2.3.0' (default: '2.2.0')")
 
     class Config:
         json_schema_extra = {
@@ -107,7 +122,9 @@ class PartialPredictionRequest(BaseModel):
                     "class_attendance_rate",
                     "new_members",
                     "total_revenue"
-                ]
+                ],
+                "model_type": "ridge",
+                "model_version": "2.2.0"
             }
         }
 

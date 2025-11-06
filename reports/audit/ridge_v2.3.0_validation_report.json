@@ -1,0 +1,192 @@
+{
+  "model_version": "2.3.0",
+  "model_type": "ridge",
+  "validation_timestamp": "2025-11-06T20:45:13.383780",
+  "model_metadata": {
+    "version": "2.3.0",
+    "model_type": "ridge",
+    "algorithm": "Ridge",
+    "hyperparameters": {
+      "alpha": 5.0
+    },
+    "n_features": 79,
+    "n_targets": 14,
+    "training_date": "2025-11-06T20:37:24.274487",
+    "training_time_seconds": 0.27
+  },
+  "test_metrics": {
+    "overall_metrics": {
+      "R2": 0.9972,
+      "RMSE": 820.31,
+      "MAE": 352.11
+    },
+    "metrics_by_target": {
+      "Revenue Day 1": {
+        "RMSE": 46.17,
+        "MAE": 34.93,
+        "R2": 0.9926,
+        "MAPE": 3.52,
+        "Mean_Error": 4.13,
+        "Std_Error": 45.99,
+        "Max_Error": 251.05
+      },
+      "Revenue Day 3": {
+        "RMSE": 51.49,
+        "MAE": 39.71,
+        "R2": 0.9908,
+        "MAPE": 4.11,
+        "Mean_Error": 4.37,
+        "Std_Error": 51.31,
+        "Max_Error": 233.95
+      },
+      "Revenue Day 7": {
+        "RMSE": 56.27,
+        "MAE": 42.92,
+        "R2": 0.989,
+        "MAPE": 4.46,
+        "Mean_Error": 5.89,
+        "Std_Error": 55.96,
+        "Max_Error": 238.93
+      },
+      "Attendance Day 7": {
+        "RMSE": 19.37,
+        "MAE": 14.64,
+        "R2": 0.734,
+        "MAPE": 16.45,
+        "Mean_Error": 2.1,
+        "Std_Error": 19.26,
+        "Max_Error": 96.24
+      },
+      "Revenue Week 1": {
+        "RMSE": 240.6,
+        "MAE": 188.88,
+        "R2": 0.9958,
+        "MAPE": 2.98,
+        "Mean_Error": 34.14,
+        "Std_Error": 238.17,
+        "Max_Error": 897.48
+      },
+      "Revenue Week 2": {
+        "RMSE": 307.75,
+        "MAE": 247.49,
+        "R2": 0.9932,
+        "MAPE": 3.98,
+        "Mean_Error": 50.61,
+        "Std_Error": 303.56,
+        "Max_Error": 1185.9
+      },
+      "Revenue Week 4": {
+        "RMSE": 379.23,
+        "MAE": 307.83,
+        "R2": 0.9896,
+        "MAPE": 4.93,
+        "Mean_Error": 91.22,
+        "Std_Error": 368.1,
+        "Max_Error": 1303.18
+      },
+      "Attendance Week 1": {
+        "RMSE": 81.57,
+        "MAE": 62.79,
+        "R2": 0.8588,
+        "MAPE": 10.06,
+        "Mean_Error": 12.85,
+        "Std_Error": 80.55,
+        "Max_Error": 373.65
+      },
+      "Revenue Month 1": {
+        "RMSE": 1174.28,
+        "MAE": 949.27,
+        "R2": 0.9946,
+        "MAPE": 3.65,
+        "Mean_Error": 277.01,
+        "Std_Error": 1141.14,
+        "Max_Error": 3968.93
+      },
+      "Revenue Month 2": {
+        "RMSE": 1807.24,
+        "MAE": 1405.17,
+        "R2": 0.9872,
+        "MAPE": 5.3,
+        "Mean_Error": 465.85,
+        "Std_Error": 1746.16,
+        "Max_Error": 8546.02
+      },
+      "Revenue Month 3": {
+        "RMSE": 2112.87,
+        "MAE": 1623.57,
+        "R2": 0.9831,
+        "MAPE": 5.74,
+        "Mean_Error": 155.98,
+        "Std_Error": 2107.1,
+        "Max_Error": 11052.86
+      },
+      "Members Month 1": {
+        "RMSE": 4.79,
+        "MAE": 3.86,
+        "R2": 0.996,
+        "MAPE": 2.54,
+        "Mean_Error": 0.46,
+        "Std_Error": 4.77,
+        "Max_Error": 13.87
+      },
+      "Members Month 3": {
+        "RMSE": 10.53,
+        "MAE": 8.42,
+        "R2": 0.9809,
+        "MAPE": 5.84,
+        "Mean_Error": 1.11,
+        "Std_Error": 10.47,
+        "Max_Error": 34.05
+      },
+      "Retention Month 3": {
+        "RMSE": 0.0,
+        "MAE": 0.0,
+        "R2": 0.9892,
+        "MAPE": 0.44,
+        "Mean_Error": 0.0,
+        "Std_Error": 0.0,
+        "Max_Error": 0.01
+      }
+    },
+    "horizon_metrics": {
+      "daily": {
+        "RMSE": 45.62,
+        "MAE": 33.05,
+        "R2": 0.9951
+      },
+      "weekly": {
+        "RMSE": 275.26,
+        "MAE": 201.75,
+        "R2": 0.9963
+      },
+      "monthly": {
+        "RMSE": 1232.16,
+        "MAE": 665.05,
+        "R2": 0.9965
+      }
+    }
+  },
+  "business_metrics": {
+    "predictions_within_5pct": 70.89,
+    "predictions_within_10pct": 91.58,
+    "predictions_within_15pct": 96.5,
+    "directional_accuracy": 72.42,
+    "business_impact_score": 77.4
+  },
+  "inference_performance": {
+    "p50_latency_ms": 1.01,
+    "p95_latency_ms": 2.0,
+    "p99_latency_ms": 2.16,
+    "mean_latency_ms": 1.09,
+    "std_latency_ms": 0.44
+  },
+  "model_size_mb": 0.01,
+  "test_samples": 2208,
+  "success_criteria": {
+    "r2_threshold": 0.9,
+    "r2_achieved": true,
+    "mape_threshold": 10.0,
+    "business_score_threshold": 80.0,
+    "business_score_achieved": false
+  }
+}

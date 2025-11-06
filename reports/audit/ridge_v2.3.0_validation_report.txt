@@ -1,0 +1,149 @@
+================================================================================
+RIDGE MODEL v2.3.0 - COMPREHENSIVE VALIDATION REPORT
+================================================================================
+
+Validation Date: 2025-11-06 20:45:13
+Model Type: Ridge MultiOutputRegressor
+Version: 2.3.0
+Test Samples: 2208
+
+--------------------------------------------------------------------------------
+MODEL CONFIGURATION
+--------------------------------------------------------------------------------
+Features: 79
+Targets: 14
+Algorithm: Ridge
+Training Date: 2025-11-06T20:37:24.274487
+Training Time: 0.27s
+
+Hyperparameters:
+  - alpha: 5.0
+
+--------------------------------------------------------------------------------
+OVERALL PERFORMANCE METRICS
+--------------------------------------------------------------------------------
+R² Score:        0.9972
+RMSE:            820.31
+MAE:             352.11
+
+--------------------------------------------------------------------------------
+PERFORMANCE BY PREDICTION HORIZON
+--------------------------------------------------------------------------------
+
+DAILY:
+  R²:   0.9951
+  RMSE: 45.62
+  MAE:  33.05
+
+WEEKLY:
+  R²:   0.9963
+  RMSE: 275.26
+  MAE:  201.75
+
+MONTHLY:
+  R²:   0.9965
+  RMSE: 1232.16
+  MAE:  665.05
+
+--------------------------------------------------------------------------------
+METRICS BY TARGET
+--------------------------------------------------------------------------------
+
+Revenue Day 1:
+  RMSE:      46.17  |  MAE:      34.93
+  R²:       0.9926  |  MAPE:      3.52%
+  Mean Error:    4.13  |  Std Error:   45.99
+
+Revenue Day 3:
+  RMSE:      51.49  |  MAE:      39.71
+  R²:       0.9908  |  MAPE:      4.11%
+  Mean Error:    4.37  |  Std Error:   51.31
+
+Revenue Day 7:
+  RMSE:      56.27  |  MAE:      42.92
+  R²:       0.9890  |  MAPE:      4.46%
+  Mean Error:    5.89  |  Std Error:   55.96
+
+Attendance Day 7:
+  RMSE:      19.37  |  MAE:      14.64
+  R²:       0.7340  |  MAPE:     16.45%
+  Mean Error:    2.10  |  Std Error:   19.26
+
+Revenue Week 1:
+  RMSE:     240.60  |  MAE:     188.88
+  R²:       0.9958  |  MAPE:      2.98%
+  Mean Error:   34.14  |  Std Error:  238.17
+
+Revenue Week 2:
+  RMSE:     307.75  |  MAE:     247.49
+  R²:       0.9932  |  MAPE:      3.98%
+  Mean Error:   50.61  |  Std Error:  303.56
+
+Revenue Week 4:
+  RMSE:     379.23  |  MAE:     307.83
+  R²:       0.9896  |  MAPE:      4.93%
+  Mean Error:   91.22  |  Std Error:  368.10
+
+Attendance Week 1:
+  RMSE:      81.57  |  MAE:      62.79
+  R²:       0.8588  |  MAPE:     10.06%
+  Mean Error:   12.85  |  Std Error:   80.55
+
+Revenue Month 1:
+  RMSE:    1174.28  |  MAE:     949.27
+  R²:       0.9946  |  MAPE:      3.65%
+  Mean Error:  277.01  |  Std Error: 1141.14
+
+Revenue Month 2:
+  RMSE:    1807.24  |  MAE:    1405.17
+  R²:       0.9872  |  MAPE:      5.30%
+  Mean Error:  465.85  |  Std Error: 1746.16
+
+Revenue Month 3:
+  RMSE:    2112.87  |  MAE:    1623.57
+  R²:       0.9831  |  MAPE:      5.74%
+  Mean Error:  155.98  |  Std Error: 2107.10
+
+Members Month 1:
+  RMSE:       4.79  |  MAE:       3.86
+  R²:       0.9960  |  MAPE:      2.54%
+  Mean Error:    0.46  |  Std Error:    4.77
+
+Members Month 3:
+  RMSE:      10.53  |  MAE:       8.42
+  R²:       0.9809  |  MAPE:      5.84%
+  Mean Error:    1.11  |  Std Error:   10.47
+
+Retention Month 3:
+  RMSE:       0.00  |  MAE:       0.00
+  R²:       0.9892  |  MAPE:      0.44%
+  Mean Error:    0.00  |  Std Error:    0.00
+
+--------------------------------------------------------------------------------
+BUSINESS METRICS
+--------------------------------------------------------------------------------
+Predictions within 5%:    70.89%
+Predictions within 10%:   91.58%
+Predictions within 15%:   96.50%
+Directional Accuracy:     72.42%
+Business Impact Score:    77.40/100
+
+--------------------------------------------------------------------------------
+INFERENCE PERFORMANCE
+--------------------------------------------------------------------------------
+Mean Latency:     1.09ms
+P50 Latency:      1.01ms
+P95 Latency:      2.00ms
+P99 Latency:      2.16ms
+Model Size:       0.01 MB
+
+--------------------------------------------------------------------------------
+SUCCESS CRITERIA ASSESSMENT
+--------------------------------------------------------------------------------
+✓ R² > 0.90:          PASS (0.9972)
+✓ Business Score > 80: FAIL (77.40)
+✓ Inference < 100ms:    PASS (2.00ms)
+
+================================================================================
+VALIDATION COMPLETE
+================================================================================
