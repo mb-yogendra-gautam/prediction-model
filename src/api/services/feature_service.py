@@ -38,7 +38,7 @@ class FeatureService:
         Returns:
             Numpy array of engineered features in correct order
         """
-        logger.info("Engineering features from lever inputs")
+        logger.debug("Engineering features from lever inputs")
         
         # Start with base features from levers
         features = {}
@@ -152,7 +152,7 @@ class FeatureService:
                 logger.warning(f"Feature '{feature_name}' not found, using 0.0")
                 feature_vector.append(0.0)
         
-        logger.info(f"Engineered {len(feature_vector)} features")
+        logger.debug(f"Engineered {len(feature_vector)} features")
         return np.array(feature_vector).reshape(1, -1)
 
     def get_feature_names(self) -> List[str]:

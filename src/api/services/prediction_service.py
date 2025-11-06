@@ -10,6 +10,8 @@ from scipy.optimize import minimize
 from sklearn.linear_model import Ridge
 import logging
 
+from .optimizer import LeverOptimizer, ScenarioComparator
+
 logger = logging.getLogger(__name__)
 
 
@@ -52,6 +54,17 @@ class PredictionService:
             'total_classes_held': (50, 500),
             'total_members': (50, 1000)
         }
+        
+        # Initialize advanced optimizer
+        self.optimizer = LeverOptimizer(
+            model=model,
+            scaler=scaler,
+            feature_service=feature_service,
+            lever_constraints=self.lever_constraints
+        )
+        
+        # Initialize scenario comparator
+        self.scenario_comparator = ScenarioComparator(self.optimizer)
         
         logger.info(f"Prediction service initialized with model version {self.version}")
 
@@ -150,167 +163,251 @@ class PredictionService:
 
     def predict_inverse(self, request_data: Dict) -> Dict:
         """
-        Inverse prediction: target revenue → optimal levers
+        Enhanced inverse prediction: target revenue → optimal levers
+        Uses advanced optimization with sensitivity analysis and feasibility assessment
         
         Args:
-            request_data: Dictionary with studio_id, target_revenue, current_state, constraints
+            request_data: Dictionary with:
+                - studio_id: Studio identifier
+                - target_revenue: Target revenue to achieve
+                - current_state: Current lever values
+                - constraints: Optional optimization constraints
+                - target_months: Target time horizon (default: 3)
+                - method: Optimization method ('auto', 'lbfgs', 'slsqp', 'de', 'ensemble')
+                - objectives: List of objectives ['revenue', 'retention', 'growth']
             
         Returns:
-            Dictionary with optimized lever values and action plan
+            Dictionary with optimized lever values, action plan, sensitivity, and feasibility
         """
-        logger.info(f"Inverse prediction for studio {request_data['studio_id']}, target: ${request_data['target_revenue']:.2f}")
+        logger.info(f"Enhanced inverse prediction for studio {request_data['studio_id']}, target: ${request_data['target_revenue']:.2f}")
         
         studio_id = request_data['studio_id']
         target_revenue = request_data['target_revenue']
         current_state = request_data['current_state']
         constraints = request_data.get('constraints', {})
         target_months = request_data.get('target_months', 3)
+        method = request_data.get('method', 'auto')
+        objectives = request_data.get('objectives', ['revenue'])
         
         # Get historical data
         historical_data = self.historical_data_service.get_studio_history(studio_id, n_months=12)
         
-        # Define objective function to minimize
-        def objective(lever_values):
-            """Minimize difference between predicted and target revenue"""
-            levers_dict = {
-                'retention_rate': lever_values[0],
-                'avg_ticket_price': lever_values[1],
-                'class_attendance_rate': lever_values[2],
-                'new_members': int(lever_values[3]),
-                'staff_utilization_rate': lever_values[4],
-                'upsell_rate': lever_values[5],
-                'total_classes_held': int(lever_values[6]),
-                'total_members': int(lever_values[7])
-            }
-            
-            # Engineer features
-            features = self.feature_service.engineer_features_from_levers(levers_dict, historical_data)
-            features_scaled = self.scaler.transform(features)
-            
-            # Predict revenue
-            predictions = self.model.predict(features_scaled)[0]
-            
-            # Sum revenue for target months (max 3)
-            predicted_revenue = sum(predictions[:min(target_months, 3)])
-            
-            # Return squared error
-            return (predicted_revenue - target_revenue) ** 2
-        
-        # Initial values from current state
-        x0 = [
-            current_state['retention_rate'],
-            current_state['avg_ticket_price'],
-            current_state['class_attendance_rate'],
-            current_state['new_members'],
-            current_state['staff_utilization_rate'],
-            current_state['upsell_rate'],
-            current_state['total_classes_held'],
-            current_state['total_members']
-        ]
-        
-        # Set up bounds
-        bounds = [
-            self.lever_constraints['retention_rate'],
-            self.lever_constraints['avg_ticket_price'],
-            self.lever_constraints['class_attendance_rate'],
-            self.lever_constraints['new_members'],
-            self.lever_constraints['staff_utilization_rate'],
-            self.lever_constraints['upsell_rate'],
-            self.lever_constraints['total_classes_held'],
-            self.lever_constraints['total_members']
-        ]
-        
-        # Apply custom constraints if provided
-        if constraints:
-            max_ret_increase = constraints.get('max_retention_increase', 0.05)
-            bounds[0] = (
-                current_state['retention_rate'],
-                min(current_state['retention_rate'] + max_ret_increase, 1.0)
-            )
-            
-            max_ticket_increase = constraints.get('max_ticket_increase', 20.0)
-            bounds[1] = (
-                current_state['avg_ticket_price'],
-                current_state['avg_ticket_price'] + max_ticket_increase
-            )
-            
-            max_members_increase = constraints.get('max_new_members_increase', 10)
-            bounds[3] = (
-                current_state['new_members'],
-                current_state['new_members'] + max_members_increase
-            )
-        
-        # Optimize
-        logger.info("Starting optimization...")
-        result = minimize(
-            objective,
-            x0,
-            method='L-BFGS-B',
-            bounds=bounds,
-            options={'maxiter': 1000}
+        # Run advanced optimization
+        optimization_result = self.optimizer.optimize(
+            target_revenue=target_revenue,
+            current_state=current_state,
+            historical_data=historical_data,
+            constraints=constraints,
+            target_months=target_months,
+            method=method,
+            objectives=objectives
         )
         
-        if not result.success:
-            logger.warning(f"Optimization did not converge: {result.message}")
+        # Extract results
+        optimized_levers = optimization_result['optimized_levers']
+        achievable_revenue = optimization_result['achieved_revenue']
+        sensitivity = optimization_result['sensitivity_analysis']
+        feasibility = optimization_result['feasibility_assessment']
+        uncertainty = optimization_result['uncertainty']
         
-        # Extract optimized levers
-        optimized_levers = {
-            'retention_rate': float(result.x[0]),
-            'avg_ticket_price': float(result.x[1]),
-            'class_attendance_rate': float(result.x[2]),
-            'new_members': int(result.x[3]),
-            'staff_utilization_rate': float(result.x[4]),
-            'upsell_rate': float(result.x[5]),
-            'total_classes_held': int(result.x[6]),
-            'total_members': int(result.x[7])
-        }
-        
-        # Calculate achievable revenue
-        features = self.feature_service.engineer_features_from_levers(optimized_levers, historical_data)
-        features_scaled = self.scaler.transform(features)
-        predictions = self.model.predict(features_scaled)[0]
-        achievable_revenue = float(sum(predictions[:min(target_months, 3)]))
-        
-        # Calculate lever changes
+        # Calculate lever changes with enhanced information
         lever_changes = []
         for lever_name, optimized_value in optimized_levers.items():
             current_value = current_state[lever_name]
             change_abs = optimized_value - current_value
             change_pct = (change_abs / current_value * 100) if current_value != 0 else 0
             
-            if abs(change_pct) > 1.0:  # Only include significant changes
+            if abs(change_abs) > 0.001:  # Include all non-zero changes
                 priority = self._calculate_priority(lever_name, abs(change_pct))
+                
+                # Add sensitivity and feasibility info
+                lever_sensitivity = sensitivity.get(lever_name, 0.0)
+                lever_feasibility = feasibility['lever_details'].get(lever_name, {})
+                
                 lever_changes.append({
                     'lever_name': lever_name,
                     'current_value': float(current_value),
                     'recommended_value': float(optimized_value),
                     'change_absolute': float(change_abs),
                     'change_percentage': float(change_pct),
-                    'priority': priority
+                    'priority': priority,
+                    'sensitivity': float(lever_sensitivity),
+                    'feasibility': lever_feasibility.get('difficulty', 'unknown'),
+                    'feasibility_score': lever_feasibility.get('score', 0.5)
                 })
         
         # Sort by priority
         lever_changes.sort(key=lambda x: x['priority'])
         
-        # Create action plan
-        action_plan = self._create_action_plan(lever_changes, achievable_revenue - sum([current_state['avg_ticket_price'] * current_state['total_members'] for _ in range(min(target_months, 3))]) / target_months)
+        # Create enhanced action plan
+        action_plan = self._create_action_plan_enhanced(
+            lever_changes=lever_changes,
+            achievable_revenue=achievable_revenue,
+            current_revenue=self._estimate_current_revenue(current_state, historical_data, target_months),
+            feasibility=feasibility
+        )
         
+        # Build comprehensive response
         response = {
             'optimization_id': str(uuid.uuid4()),
             'studio_id': studio_id,
             'target_revenue': float(target_revenue),
-            'achievable_revenue': achievable_revenue,
-            'achievement_rate': float(min(achievable_revenue / target_revenue, 1.0)),
+            'achievable_revenue': float(achievable_revenue),
+            'achievement_rate': float(optimization_result['achievement_rate']),
             'recommended_levers': optimized_levers,
             'lever_changes': lever_changes,
             'action_plan': action_plan,
-            'confidence_score': 0.75 if result.success else 0.60,
+            'confidence_score': float(optimization_result['confidence_score']),
+            'optimization_details': {
+                'method': optimization_result['optimization_method'],
+                'success': optimization_result['success'],
+                'iterations': optimization_result['iterations'],
+                'function_evaluations': optimization_result['function_evaluations']
+            },
+            'sensitivity_analysis': {
+                lever: float(score) for lever, score in sensitivity.items()
+            },
+            'feasibility_assessment': {
+                'overall_score': float(feasibility['overall_score']),
+                'overall_difficulty': feasibility['overall_difficulty'],
+                'implementation_timeline_weeks': self._estimate_implementation_timeline(feasibility)
+            },
+            'uncertainty': {
+                'predicted_revenue_range': uncertainty['confidence_interval_95'],
+                'standard_deviation': float(uncertainty['std_revenue']),
+                'confidence_level': '95%'
+            },
             'model_version': self.version,
             'timestamp': datetime.now().isoformat()
         }
         
-        logger.info(f"Inverse prediction complete: ${achievable_revenue:.2f} achievable ({response['achievement_rate']*100:.1f}% of target)")
+        logger.info(
+            f"Enhanced inverse prediction complete: ${achievable_revenue:.2f} achievable "
+            f"({response['achievement_rate']*100:.1f}% of target), "
+            f"confidence: {response['confidence_score']:.2f}"
+        )
+        
         return response
+    
+    def _estimate_current_revenue(self, current_state: Dict, historical_data, months: int) -> float:
+        """Estimate current revenue trajectory"""
+        try:
+            features = self.feature_service.engineer_features_from_levers(current_state, historical_data)
+            features_scaled = self.scaler.transform(features)
+            predictions = self.model.predict(features_scaled)[0]
+            return float(sum(predictions[:min(months, 3)]))
+        except Exception as e:
+            logger.warning(f"Could not estimate current revenue: {e}")
+            # Fallback: simple estimation
+            return current_state['avg_ticket_price'] * current_state['total_members'] * months
+    
+    def _estimate_implementation_timeline(self, feasibility: Dict) -> int:
+        """Estimate total implementation timeline in weeks"""
+        difficulty = feasibility['overall_difficulty']
+        timeline_map = {
+            'easy': 4,
+            'moderate': 8,
+            'hard': 12,
+            'very_hard': 16
+        }
+        return timeline_map.get(difficulty, 8)
+    
+    def _create_action_plan_enhanced(
+        self,
+        lever_changes: List[Dict],
+        achievable_revenue: float,
+        current_revenue: float,
+        feasibility: Dict
+    ) -> List[Dict]:
+        """Create enhanced prioritized action plan from lever changes"""
+        action_items = []
+        
+        action_templates = {
+            'retention_rate': {
+                'action': 'Improve member retention through enhanced engagement programs and personalized services',
+                'timeline_weeks': 8,
+                'department': 'Member Success',
+                'resources_needed': ['Staff training', 'CRM system', 'Engagement programs']
+            },
+            'avg_ticket_price': {
+                'action': 'Implement strategic pricing increase with value-added services',
+                'timeline_weeks': 4,
+                'department': 'Sales & Marketing',
+                'resources_needed': ['Pricing analysis', 'Value proposition development', 'Communication plan']
+            },
+            'new_members': {
+                'action': 'Launch targeted marketing campaign and referral program',
+                'timeline_weeks': 6,
+                'department': 'Marketing',
+                'resources_needed': ['Marketing budget', 'Campaign materials', 'Referral incentives']
+            },
+            'upsell_rate': {
+                'action': 'Train staff on upselling techniques and introduce premium packages',
+                'timeline_weeks': 3,
+                'department': 'Sales',
+                'resources_needed': ['Sales training', 'Premium packages', 'Incentive program']
+            },
+            'class_attendance_rate': {
+                'action': 'Optimize class schedule and improve class variety based on member feedback',
+                'timeline_weeks': 2,
+                'department': 'Operations',
+                'resources_needed': ['Member survey', 'Schedule optimization', 'Instructor training']
+            },
+            'staff_utilization_rate': {
+                'action': 'Optimize staff scheduling and cross-train instructors',
+                'timeline_weeks': 2,
+                'department': 'HR & Operations',
+                'resources_needed': ['Scheduling software', 'Cross-training program']
+            },
+            'total_classes_held': {
+                'action': 'Expand class offerings during peak demand hours',
+                'timeline_weeks': 2,
+                'department': 'Operations',
+                'resources_needed': ['Additional instructors', 'Equipment', 'Studio space']
+            },
+            'total_members': {
+                'action': 'Grow member base through acquisition and retention strategies',
+                'timeline_weeks': 12,
+                'department': 'Growth',
+                'resources_needed': ['Marketing budget', 'Sales team', 'Member experience improvements']
+            }
+        }
+        
+        total_revenue_impact = achievable_revenue - current_revenue
+        
+        for i, change in enumerate(lever_changes[:6]):  # Top 6 changes
+            lever_name = change['lever_name']
+            if lever_name in action_templates:
+                template = action_templates[lever_name]
+                
+                # Calculate proportional impact based on sensitivity
+                total_sensitivity = sum([abs(c['sensitivity']) for c in lever_changes[:6]])
+                if total_sensitivity > 0:
+                    impact_weight = abs(change['sensitivity']) / total_sensitivity
+                else:
+                    impact_weight = 1.0 / len(lever_changes[:6])  # Equal distribution if no sensitivity
+                expected_impact = total_revenue_impact * impact_weight
+                
+                # Adjust timeline based on feasibility
+                base_timeline = template['timeline_weeks']
+                if change['feasibility'] == 'hard':
+                    base_timeline = int(base_timeline * 1.5)
+                elif change['feasibility'] == 'very_hard':
+                    base_timeline = int(base_timeline * 2)
+                
+                action_items.append({
+                    'priority': i + 1,
+                    'lever': lever_name,
+                    'action': template['action'],
+                    'expected_impact': float(expected_impact),
+                    'timeline_weeks': base_timeline,
+                    'department': template['department'],
+                    'feasibility': change['feasibility'],
+                    'resources_needed': template['resources_needed'],
+                    'sensitivity_score': float(change['sensitivity'])
+                })
+        
+        return action_items
 
     def predict_partial_levers(self, request_data: Dict) -> Dict:
         """

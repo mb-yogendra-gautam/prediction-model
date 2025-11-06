@@ -1,0 +1,47 @@
+{
+  "studio_id": "STU001",
+  "target_revenue": 38000.0,
+  "current_state": {
+    "retention_rate": 0.70,
+    "avg_ticket_price": 140.0,
+    "class_attendance_rate": 0.65,
+    "new_members": 20,
+    "staff_utilization_rate": 0.80,
+    "upsell_rate": 0.20,
+    "total_classes_held": 100,
+    "total_members": 180
+  },
+  "scenarios": [
+    {
+      "name": "Conservative - Easy Wins",
+      "constraints": {
+        "max_retention_increase": 0.03,
+        "max_ticket_increase": 10.0,
+        "max_new_members_increase": 5
+      },
+      "objectives": ["revenue"],
+      "method": "auto"
+    },
+    {
+      "name": "Balanced - Moderate Growth",
+      "constraints": {
+        "max_retention_increase": 0.05,
+        "max_ticket_increase": 20.0,
+        "max_new_members_increase": 10
+      },
+      "objectives": ["revenue"],
+      "method": "ensemble"
+    },
+    {
+      "name": "Aggressive - Maximum Growth",
+      "constraints": {
+        "max_retention_increase": 0.10,
+        "max_ticket_increase": 50.0,
+        "max_new_members_increase": 20
+      },
+      "objectives": ["revenue", "retention", "growth"],
+      "method": "de"
+    }
+  ]
+}
+

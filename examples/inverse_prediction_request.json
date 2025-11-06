@@ -1,0 +1,23 @@
+{
+  "studio_id": "STU001",
+  "target_revenue": 35000.0,
+  "current_state": {
+    "retention_rate": 0.70,
+    "avg_ticket_price": 140.0,
+    "class_attendance_rate": 0.65,
+    "new_members": 20,
+    "staff_utilization_rate": 0.80,
+    "upsell_rate": 0.20,
+    "total_classes_held": 100,
+    "total_members": 180
+  },
+  "constraints": {
+    "max_retention_increase": 0.05,
+    "max_ticket_increase": 20.0,
+    "max_new_members_increase": 10
+  },
+  "target_months": 3,
+  "method": "ensemble",
+  "objectives": ["revenue"]
+}
+

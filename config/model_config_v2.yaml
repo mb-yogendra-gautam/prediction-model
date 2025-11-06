@@ -23,65 +23,65 @@ models:
   # OPTION 1: Single regularized model (RECOMMENDED for small data)
   ridge:
     enabled: true
-    alpha: 10.0  # Strong regularization
-    
+    alpha: 10.0 # Strong regularization
+
   lasso:
     enabled: true
     alpha: 1.0
-    
+
   elastic_net:
     enabled: true
     alpha: 1.0
     l1_ratio: 0.5
-  
+
   # OPTION 2: Simplified tree models
   xgboost:
-    enabled: false  # Disable for now - too complex
-    n_estimators: 50  # Reduced from 300
-    max_depth: 2      # Reduced from 5
+    enabled: false # Disable for now - too complex
+    n_estimators: 50 # Reduced from 300
+    max_depth: 2 # Reduced from 5
     learning_rate: 0.1
     subsample: 0.7
     colsample_bytree: 0.7
-    min_child_weight: 5  # Increased regularization
-    gamma: 1.0           # Increased regularization
-    reg_alpha: 1.0       # L1 regularization
-    reg_lambda: 5.0      # L2 regularization
+    min_child_weight: 5 # Increased regularization
+    gamma: 1.0 # Increased regularization
+    reg_alpha: 1.0 # L1 regularization
+    reg_lambda: 5.0 # L2 regularization
     early_stopping_rounds: 10
     verbose: false
 
   lightgbm:
-    enabled: false  # Disable for now - too complex
+    enabled: false # Disable for now - too complex
     n_estimators: 50
     max_depth: 2
     learning_rate: 0.1
     subsample: 0.7
     colsample_bytree: 0.7
-    min_child_samples: 10  # Increased
+    min_child_samples: 10 # Increased
     reg_alpha: 1.0
     reg_lambda: 5.0
     early_stopping_rounds: 10
     verbose: -1
 
   random_forest:
-    enabled: false  # Disable for now - too complex
-    n_estimators: 30  # Reduced from 200
-    max_depth: 3      # Reduced from 10
-    min_samples_split: 10  # Increased from 5
-    min_samples_leaf: 5    # Increased from 2
-    max_features: 0.3      # Use fewer features per tree
+    enabled: false # Disable for now - too complex
+    n_estimators: 30 # Reduced from 200
+    max_depth: 3 # Reduced from 10
+    min_samples_split: 10 # Increased from 5
+    min_samples_leaf: 5 # Increased from 2
+    max_features: 0.3 # Use fewer features per tree
     bootstrap: true
     oob_score: true
 
 # Feature selection to reduce dimensionality
 feature_selection:
   enabled: true
-  method: "select_k_best"  # or "recursive_elimination"
-  k_features: 15  # Reduce from 41 to 15 most important
+  method: "select_k_best" # or "recursive_elimination"
+  k_features: 15 # Reduce from 41 to 15 most important
   score_func: "f_regression"
 
 ensemble:
-  strategy: "simple_average"  # Changed from weighted
-  weight_calculation: "equal"  # Simpler for small data
+  strategy: "simple_average" # Changed from weighted
+  weight_calculation: "equal" # Simpler for small data
 
 evaluation:
   metrics:
@@ -97,15 +97,15 @@ evaluation:
   confidence_interval: 95
   cross_validation:
     enabled: true
-    folds: 5  # Use CV for better evaluation
+    folds: 5 # Use CV for better evaluation
     stratified: false
 
 # Hyperparameter tuning with caution
 hyperparameter_tuning:
-  enabled: false  # Disable to avoid overfitting
+  enabled: false # Disable to avoid overfitting
   method: "random_search"
-  n_iterations: 20  # Reduced from 50
-  cv_folds: 3  # Reduced from 5
+  n_iterations: 20 # Reduced from 50
+  cv_folds: 3 # Reduced from 5
   scoring: "neg_root_mean_squared_error"
 
 optimization:
@@ -137,8 +137,8 @@ optimization:
 data_augmentation:
   enabled: true
   methods:
-    - noise_injection  # Add small Gaussian noise
-    - interpolation    # Create synthetic samples between existing ones
+    - noise_injection # Add small Gaussian noise
+    - interpolation # Create synthetic samples between existing ones
   noise_level: 0.02
-  augmentation_factor: 1.5  # Increase dataset by 50%
+  augmentation_factor: 1.5 # Increase dataset by 50%
 
