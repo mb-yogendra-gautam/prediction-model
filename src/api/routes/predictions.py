@@ -14,6 +14,7 @@ from src.api.schemas.responses import (
     PartialPredictionResponse
 )
 from src.api.schemas.lever_metadata import get_all_levers, LEVER_REGISTRY
+from src.api.services.metrics_calculator import MetricsCalculator
 import logging
 
 logger = logging.getLogger(__name__)
@@ -141,6 +142,7 @@ async def partial_lever_prediction(
     **Input:**
     - input_levers: Dictionary of known lever values
     - output_levers: List of lever names to predict
+    - projection_months: Number of months to project (1-12, default: 3)
 
     **Supported output levers:**
     - All 8 primary levers (retention_rate, avg_ticket_price, etc.)
@@ -151,6 +153,7 @@ async def partial_lever_prediction(
 
     **Returns:**
     - Predicted values for requested levers
+    - Month-wise predictions for each lever
     - Confidence scores for each prediction
     - Value ranges (min, max)
     - AI insights (if requested)
@@ -162,7 +165,8 @@ async def partial_lever_prediction(
         request_dict = {
             'studio_id': request.studio_id,
             'input_levers': request.input_levers,
-            'output_levers': request.output_levers
+            'output_levers': request.output_levers,
+            'projection_months': request.projection_months
         }
 
         result = service.predict_partial_levers(request_dict, include_ai_insights=include_ai_insights)
@@ -285,7 +289,34 @@ async def compare_optimization_scenarios(request: dict):
             historical_data=historical_data,
             scenarios=scenarios
         )
-        
+
+        # Add prediction metrics to each scenario
+        try:
+            metrics_calculator = MetricsCalculator()
+            for scenario_result in result.get('scenarios', []):
+                # Extract lever changes from optimized levers
+                lever_changes = []
+                optimized_levers = scenario_result.get('optimized_levers', {})
+                for lever_name, opt_value in optimized_levers.items():
+                    curr_value = current_state.get(lever_name, 0)
+                    change_pct = ((opt_value - curr_value) / curr_value * 100) if curr_value != 0 else 0
+                    lever_changes.append({
+                        'change_percentage': change_pct
+                    })
+
+                # Calculate metrics for this scenario
+                metrics = metrics_calculator.calculate_inverse_metrics(
+                    target_revenue=target_revenue,
+                    achievable_revenue=scenario_result.get('achieved_revenue', 0),
+                    achievement_rate=scenario_result.get('achievement_rate', 0),
+                    confidence_score=scenario_result.get('confidence_score', 0),
+                    lever_changes=lever_changes
+                )
+                scenario_result['prediction_metrics'] = metrics
+                logger.debug(f"Calculated metrics for scenario: {scenario_result.get('scenario_name')}")
+        except Exception as e:
+            logger.warning(f"Failed to calculate scenario metrics: {e}")
+
         return result
         
     except Exception as e:
