@@ -2,9 +2,20 @@
 Response Schemas for API Endpoints
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Dict
 from datetime import datetime
+
+
+class ProductRecommendation(BaseModel):
+    """Product/Service recommendation with correlation data"""
+    product: str = Field(..., description="Product or service name")
+    action: str = Field(..., description="Action to take: 'promote' or 'demote'")
+    category: str = Field(..., description="Product category (Memberships, Class Packages, Retail, Add-On Services)")
+    correlation: float = Field(..., description="Correlation with target metric (-1 to 1)")
+    avg_revenue: float = Field(..., description="Average revenue from this product")
+    impact_score: Optional[float] = Field(None, description="Combined impact score (correlation * revenue)")
+    reasoning: str = Field(..., description="Why this recommendation is being made")
 
 
 class AIInsights(BaseModel):
@@ -14,6 +25,7 @@ class AIInsights(BaseModel):
     recommendations: List[str] = Field(..., description="Actionable recommendations for the studio")
     risks: List[str] = Field(..., description="Potential risks or concerns to be aware of")
     confidence_explanation: str = Field(..., description="Explanation of confidence levels in plain language")
+    product_recommendations: Optional[List[ProductRecommendation]] = Field(None, description="Product/service recommendations based on correlations")
 
 
 class PredictionMetrics(BaseModel):

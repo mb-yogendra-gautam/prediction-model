@@ -28,7 +28,8 @@ class PredictionService:
         metadata: Dict,
         explainability_service=None,
         counterfactual_service=None,
-        ai_insights_service=None
+        ai_insights_service=None,
+        product_service_analyzer=None
     ):
         """
         Initialize prediction service
@@ -42,6 +43,7 @@ class PredictionService:
             explainability_service: Optional explainability service for SHAP analysis
             counterfactual_service: Optional counterfactual service for what-if analysis
             ai_insights_service: Optional AI insights service for generating business insights with LangChain
+            product_service_analyzer: Optional product/service analyzer for correlation-based recommendations
         """
         self.model = model
         self.scaler = scaler
@@ -52,6 +54,7 @@ class PredictionService:
         self.explainability_service = explainability_service
         self.counterfactual_service = counterfactual_service
         self.ai_insights_service = ai_insights_service
+        self.product_service_analyzer = product_service_analyzer
         
         # Lever constraints for optimization
         self.lever_constraints = {
@@ -206,6 +209,18 @@ class PredictionService:
             response['quick_wins'] = quick_wins
 
         # Generate AI insights if requested
+        # Get product recommendations if analyzer available
+        product_recommendations = None
+        if self.product_service_analyzer:
+            try:
+                product_recommendations = self.product_service_analyzer.get_product_recommendations(
+                    current_levers=levers,
+                    target_metric='total_revenue'
+                )
+                logger.debug(f"Generated product recommendations: {len(product_recommendations.get('promote', []))} to promote, {len(product_recommendations.get('demote', []))} to demote")
+            except Exception as e:
+                logger.warning(f"Error getting product recommendations: {str(e)}")
+        
         if include_ai_insights and self.ai_insights_service:
             try:
                 ai_insights = self.ai_insights_service.generate_forward_insights(
@@ -214,7 +229,8 @@ class PredictionService:
                     avg_confidence=avg_confidence,
                     predictions=monthly_predictions,
                     explanation=explanation,
-                    quick_wins=quick_wins
+                    quick_wins=quick_wins,
+                    product_recommendations=product_recommendations
                 )
                 if ai_insights:
                     response['ai_insights'] = ai_insights

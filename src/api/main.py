@@ -15,9 +15,12 @@ from src.api.services.historical_data_service import HistoricalDataService
 from src.api.services.explainability_service import ExplainabilityService
 from src.api.services.counterfactual_service import CounterfactualService
 from src.api.services.ai_insights_service import AIInsightsService
+from src.api.services.product_service_analyzer import ProductServiceAnalyzer
 from src.api.routes import predictions
 from src.api.schemas.responses import HealthCheckResponse
 from src.utils.response_formatter import round_numeric_values
+import pandas as pd
+import pickle
 
 # Configure logging
 logging.basicConfig(
@@ -94,6 +97,24 @@ async def lifespan(app: FastAPI):
         app_state['ai_insights_service'] = ai_insights_service
         logger.info("✓ AI Insights service initialized")
 
+        # Product Service Analyzer (load product correlations)
+        product_service_analyzer = None
+        try:
+            logger.info("Loading product correlation artifacts...")
+            # Load training data with product columns
+            training_data_path = "data/processed/multi_studio_data_engineered.csv"
+            training_df = pd.read_csv(training_data_path)
+            training_df = training_df[training_df['split'] == 'train'].copy()
+            
+            # Initialize analyzer with training data
+            product_service_analyzer = ProductServiceAnalyzer(training_data=training_df)
+            app_state['product_service_analyzer'] = product_service_analyzer
+            logger.info("✓ Product Service Analyzer initialized")
+        except Exception as e:
+            logger.warning(f"Product Service Analyzer initialization failed: {e}")
+            logger.warning("Product recommendations will not be available")
+            app_state['product_service_analyzer'] = None
+
         # Prediction service
         prediction_service = PredictionService(
             model=model_artifacts['model'],
@@ -103,7 +124,8 @@ async def lifespan(app: FastAPI):
             metadata=model_artifacts['metadata'],
             explainability_service=explainability_service,
             counterfactual_service=counterfactual_service,
-            ai_insights_service=ai_insights_service
+            ai_insights_service=ai_insights_service,
+            product_service_analyzer=product_service_analyzer
         )
         app_state['prediction_service'] = prediction_service
 
