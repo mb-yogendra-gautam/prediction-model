@@ -15,6 +15,7 @@ from src.api.schemas.responses import (
 )
 from src.api.schemas.lever_metadata import get_all_levers, LEVER_REGISTRY
 from src.api.services.metrics_calculator import MetricsCalculator
+from src.utils.response_formatter import round_numeric_values
 import logging
 
 logger = logging.getLogger(__name__)
@@ -75,7 +76,7 @@ async def forward_prediction(
         }
 
         result = service.predict_forward(request_dict, include_ai_insights=include_ai_insights)
-        return result
+        return round_numeric_values(result)
         
     except Exception as e:
         logger.error(f"Forward prediction error: {e}", exc_info=True)
@@ -119,7 +120,7 @@ async def inverse_prediction(
         }
 
         result = service.predict_inverse(request_dict, include_ai_insights=include_ai_insights)
-        return result
+        return round_numeric_values(result)
         
     except Exception as e:
         logger.error(f"Inverse prediction error: {e}", exc_info=True)
@@ -170,7 +171,7 @@ async def partial_lever_prediction(
         }
 
         result = service.predict_partial_levers(request_dict, include_ai_insights=include_ai_insights)
-        return result
+        return round_numeric_values(result)
         
     except Exception as e:
         logger.error(f"Partial prediction error: {e}", exc_info=True)
@@ -209,11 +210,11 @@ async def get_business_levers(
     try:
         levers = get_all_levers(include_details=include_details)
 
-        return {
+        return round_numeric_values({
             "levers": levers,
             "count": len(levers),
             "version": "1.0.0"
-        }
+        })
     except Exception as e:
         logger.error(f"Error retrieving levers: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to retrieve levers: {str(e)}")
@@ -317,7 +318,7 @@ async def compare_optimization_scenarios(request: dict):
         except Exception as e:
             logger.warning(f"Failed to calculate scenario metrics: {e}")
 
-        return result
+        return round_numeric_values(result)
         
     except Exception as e:
         logger.error(f"Scenario comparison error: {e}", exc_info=True)
