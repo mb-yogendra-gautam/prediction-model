@@ -244,9 +244,9 @@ class MultiStudioDataGenerator:
     def _generate_studio_data(self, profile):
         """Generate time series data for a single studio"""
         
-        # Create date range
+        # Create date range - one record per month
         start_date = datetime(2019, 1, 1)
-        dates = [start_date + timedelta(days=30*i) for i in range(self.months)]
+        dates = pd.date_range(start=start_date, periods=self.months, freq='MS')  # MS = Month Start
         
         data = []
         
@@ -277,12 +277,6 @@ class MultiStudioDataGenerator:
             # Pricing with small variations
             avg_ticket = profile['base_price'] * (1 + np.random.normal(0, 0.05))
             
-            # Revenue calculations
-            membership_revenue = members * avg_ticket * 0.75  # 75% from memberships
-            class_pack_revenue = members * avg_ticket * 0.20  # 20% from class packs
-            retail_revenue = members * avg_ticket * 0.05  # 5% from retail
-            total_revenue = membership_revenue + class_pack_revenue + retail_revenue
-            
             # Class metrics
             classes_per_member = 8 + np.random.normal(0, 1.5)
             classes_per_member = max(5, classes_per_member)
@@ -300,6 +294,166 @@ class MultiStudioDataGenerator:
             upsell_rate = 0.15 + np.random.normal(0, 0.03)
             upsell_rate = np.clip(upsell_rate, 0.08, 0.25)
             
+            # ============================================
+            # PRODUCT/SERVICE BREAKDOWN (26 new columns)
+            # ============================================
+            
+            # MEMBERSHIP TYPES (6 columns)
+            # Distribution influenced by price tier and retention
+            # Basic: 40-50% of members, lower price
+            # Premium: 30-40% of members, higher price, correlated with retention
+            # Family: 10-20% of members, highest price, correlated with retention
+            
+            retention_factor = retention_rate / 0.70  # Normalize around 0.70 baseline
+            price_tier_multiplier = {'low': 0.8, 'medium': 1.0, 'high': 1.2}[profile['price_tier']]
+            
+            # Basic membership: inversely correlated with retention (churners tend to be basic)
+            basic_pct = 0.50 - (retention_factor - 1) * 0.10 + np.random.normal(0, 0.03)
+            basic_pct = np.clip(basic_pct, 0.35, 0.60)
+            basic_membership_count = int(members * basic_pct)
+            basic_membership_revenue = basic_membership_count * avg_ticket * 0.35  # Reduced from 0.75 to bring revenue down
+            
+            # Premium membership: positively correlated with retention and attendance
+            premium_pct = 0.35 + (retention_factor - 1) * 0.08 + (class_attendance_rate - 0.65) * 0.15
+            premium_pct = np.clip(premium_pct, 0.25, 0.45)
+            premium_membership_count = int(members * premium_pct)
+            premium_membership_revenue = premium_membership_count * avg_ticket * 0.50  # Reduced from 1.2 to bring revenue down
+            
+            # Family membership: positively correlated with retention and location (suburban)
+            family_bonus = 0.05 if profile['location_type'] == 'suburban' else 0
+            family_pct = 0.15 + (retention_factor - 1) * 0.05 + family_bonus + np.random.normal(0, 0.02)
+            family_pct = np.clip(family_pct, 0.08, 0.25)
+            family_membership_count = int(members * family_pct)
+            family_membership_revenue = family_membership_count * avg_ticket * 0.65  # Reduced from 1.5 to bring revenue down
+            
+            # CLASS PACKAGES (8 columns)
+            # Distribution influenced by attendance rate and class participation
+            # Drop-in: negatively correlated with attendance (casual users)
+            # Class packs: moderately correlated with attendance
+            # Unlimited: highly correlated with attendance and retention
+            
+            attendance_factor = class_attendance_rate / 0.65  # Normalize
+            
+            # Drop-in classes: casual users, inversely correlated with attendance commitment
+            drop_in_pct = 0.25 - (attendance_factor - 1) * 0.10 + np.random.normal(0, 0.03)
+            drop_in_pct = np.clip(drop_in_pct, 0.10, 0.35)
+            drop_in_class_count = int(members * drop_in_pct)
+            drop_in_class_revenue = drop_in_class_count * 12  # Reduced from $25 to $12
+            
+            # Class pack 10: moderate users
+            class_pack_10_pct = 0.20 + (attendance_factor - 1) * 0.05
+            class_pack_10_pct = np.clip(class_pack_10_pct, 0.12, 0.28)
+            class_pack_10_count = int(members * class_pack_10_pct * 0.10)  # Reduced from 15% to 10%
+            class_pack_10_revenue = class_pack_10_count * 100  # Reduced from $200 to $100
+            
+            # Class pack 20: committed users, correlated with attendance
+            class_pack_20_pct = 0.15 + (attendance_factor - 1) * 0.08
+            class_pack_20_pct = np.clip(class_pack_20_pct, 0.08, 0.22)
+            class_pack_20_count = int(members * class_pack_20_pct * 0.08)  # Reduced from 12% to 8%
+            class_pack_20_revenue = class_pack_20_count * 180  # Reduced from $350 to $180
+            
+            # Unlimited classes: highly committed, strongly correlated with attendance and retention
+            unlimited_pct = 0.30 + (attendance_factor - 1) * 0.15 + (retention_factor - 1) * 0.10
+            unlimited_pct = np.clip(unlimited_pct, 0.20, 0.50)
+            unlimited_class_count = int(members * unlimited_pct)
+            unlimited_class_revenue = unlimited_class_count * avg_ticket * 0.15  # Reduced from 0.40 to 0.15
+            
+            # RETAIL PRODUCTS (6 columns)
+            # Distribution influenced by member engagement (attendance, upsell_rate)
+            # Apparel: correlated with new members and upsell rate
+            # Supplements: correlated with attendance and premium memberships
+            # Equipment: correlated with retention and home workout trends
+            
+            engagement_factor = (class_attendance_rate * 0.5 + upsell_rate * 0.5)
+            
+            # Apparel sales: impulse buys, correlated with new members and upsell
+            apparel_buy_rate = 0.08 + upsell_rate * 0.20 + (new_members / members) * 0.10
+            apparel_buy_rate = np.clip(apparel_buy_rate, 0.05, 0.18)
+            apparel_sales_count = int(members * apparel_buy_rate * 0.5)  # Reduced purchases by 50%
+            apparel_revenue = apparel_sales_count * 22  # Reduced from $45 to $22
+            
+            # Supplements: health-conscious members, correlated with premium tier and attendance
+            supplements_buy_rate = 0.12 + (premium_pct - 0.35) * 0.30 + (attendance_factor - 1) * 0.08
+            supplements_buy_rate = np.clip(supplements_buy_rate, 0.06, 0.22)
+            supplements_sales_count = int(members * supplements_buy_rate * 0.5)  # Reduced purchases by 50%
+            supplements_revenue = supplements_sales_count * 28  # Reduced from $55 to $28
+            
+            # Equipment: home workout gear, slightly correlated with retention
+            equipment_buy_rate = 0.06 + (retention_factor - 1) * 0.04 + np.random.normal(0, 0.01)
+            equipment_buy_rate = np.clip(equipment_buy_rate, 0.03, 0.12)
+            equipment_sales_count = int(members * equipment_buy_rate * 0.4)  # Reduced purchases by 60%
+            equipment_revenue = equipment_sales_count * 40  # Reduced from $80 to $40
+            
+            # ADD-ON SERVICES (6 columns)
+            # Distribution influenced by price tier, retention, and studio size
+            # Personal training: premium service, correlated with retention and premium members
+            # Nutrition coaching: wellness-focused, correlated with retention and supplements
+            # Wellness services: premium feature, correlated with premium tier and retention
+            
+            premium_studio_factor = price_tier_multiplier
+            
+            # Personal training: high-value service, correlated with retention and premium tier
+            pt_rate = 0.18 + (retention_factor - 1) * 0.10 + (premium_pct - 0.35) * 0.20
+            pt_rate = np.clip(pt_rate * premium_studio_factor, 0.08, 0.35)
+            personal_training_count = int(members * pt_rate * 0.4)  # Reduced adoption by 60%
+            personal_training_revenue = personal_training_count * 140  # Reduced from $280 to $140
+            
+            # Nutrition coaching: wellness service, correlated with supplements and premium
+            nutrition_rate = 0.10 + (supplements_buy_rate - 0.12) * 0.50 + (retention_factor - 1) * 0.06
+            nutrition_rate = np.clip(nutrition_rate * premium_studio_factor, 0.04, 0.22)
+            nutrition_coaching_count = int(members * nutrition_rate * 0.5)  # Reduced adoption by 50%
+            nutrition_coaching_revenue = nutrition_coaching_count * 75  # Reduced from $150 to $75
+            
+            # Wellness services: massage, physical therapy, etc.
+            wellness_rate = 0.08 + (retention_factor - 1) * 0.05 + (premium_pct - 0.35) * 0.15
+            wellness_rate = np.clip(wellness_rate * premium_studio_factor, 0.03, 0.18)
+            wellness_services_count = int(members * wellness_rate * 0.5)  # Reduced adoption by 50%
+            wellness_services_revenue = wellness_services_count * 48  # Reduced from $95 to $48
+            
+            # ============================================
+            # CALCULATE AGGREGATE REVENUES (sum of products)
+            # ============================================
+            
+            # Total membership revenue = sum of all membership types
+            membership_revenue = (
+                basic_membership_revenue + 
+                premium_membership_revenue + 
+                family_membership_revenue
+            )
+            
+            # Total class pack revenue = sum of all class packages
+            class_pack_revenue = (
+                drop_in_class_revenue + 
+                class_pack_10_revenue + 
+                class_pack_20_revenue + 
+                unlimited_class_revenue
+            )
+            
+            # Total retail revenue = sum of all retail products
+            retail_revenue = (
+                apparel_revenue + 
+                supplements_revenue + 
+                equipment_revenue
+            )
+            
+            # Total add-on services revenue (not in original categories, but part of total)
+            addon_services_revenue = (
+                personal_training_revenue + 
+                nutrition_coaching_revenue + 
+                wellness_services_revenue
+            )
+            
+            # TOTAL REVENUE = sum of ALL individual products/services
+            total_revenue = (
+                membership_revenue + 
+                class_pack_revenue + 
+                retail_revenue + 
+                addon_services_revenue
+            )
+            
+            # Recalculate avg_ticket_price based on actual total revenue
+            avg_ticket = total_revenue / members if members > 0 else avg_ticket
+            
             # # Future targets (simplified - assume similar patterns continue)
             # # In reality, these would have their own logic
             # revenue_month_1 = total_revenue * (1 + profile['growth_rate'] * 1) * (1 + np.random.normal(0, 0.02))
@@ -313,7 +467,7 @@ class MultiStudioDataGenerator:
             # Create record
             record = {
                 'studio_id': profile['studio_id'],
-                'month_year': date.strftime('%Y-%m-%d'),
+                'month_year': date.strftime('%Y-%m'),
                 'total_members': members,
                 'new_members': new_members,
                 'churned_members': churned_members,
@@ -332,6 +486,41 @@ class MultiStudioDataGenerator:
                 'studio_location': profile['location_type'],
                 'studio_size_tier': profile['size_tier'],
                 'studio_price_tier': profile['price_tier'],
+                
+                # MEMBERSHIP TYPES (6 columns)
+                'basic_membership_count': basic_membership_count,
+                'basic_membership_revenue': round(basic_membership_revenue, 2),
+                'premium_membership_count': premium_membership_count,
+                'premium_membership_revenue': round(premium_membership_revenue, 2),
+                'family_membership_count': family_membership_count,
+                'family_membership_revenue': round(family_membership_revenue, 2),
+                
+                # CLASS PACKAGES (8 columns)
+                'drop_in_class_count': drop_in_class_count,
+                'drop_in_class_revenue': round(drop_in_class_revenue, 2),
+                'class_pack_10_count': class_pack_10_count,
+                'class_pack_10_revenue': round(class_pack_10_revenue, 2),
+                'class_pack_20_count': class_pack_20_count,
+                'class_pack_20_revenue': round(class_pack_20_revenue, 2),
+                'unlimited_class_count': unlimited_class_count,
+                'unlimited_class_revenue': round(unlimited_class_revenue, 2),
+                
+                # RETAIL PRODUCTS (6 columns)
+                'apparel_sales_count': apparel_sales_count,
+                'apparel_revenue': round(apparel_revenue, 2),
+                'supplements_sales_count': supplements_sales_count,
+                'supplements_revenue': round(supplements_revenue, 2),
+                'equipment_sales_count': equipment_sales_count,
+                'equipment_revenue': round(equipment_revenue, 2),
+                
+                # ADD-ON SERVICES (6 columns)
+                'personal_training_count': personal_training_count,
+                'personal_training_revenue': round(personal_training_revenue, 2),
+                'nutrition_coaching_count': nutrition_coaching_count,
+                'nutrition_coaching_revenue': round(nutrition_coaching_revenue, 2),
+                'wellness_services_count': wellness_services_count,
+                'wellness_services_revenue': round(wellness_services_revenue, 2),
+                
                 # Targets
                 # 'revenue_month_1': round(revenue_month_1, 2),
                 # 'revenue_month_2': round(revenue_month_2, 2),

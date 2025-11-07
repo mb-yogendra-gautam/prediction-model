@@ -79,6 +79,10 @@ class FeatureEngineer:
 
         # 8. Cyclical encoding for seasonality
         df = self._add_cyclical_features(df)
+        
+        # 9. Add target variables (for training only)
+        if is_training:
+            df = self._add_target_variables(df)
 
         # Remove rows with NaN from rolling/lagged features
         initial_rows = len(df)
@@ -264,6 +268,36 @@ class FeatureEngineer:
         df['is_summer'] = df['month_index'].isin([6, 7, 8]).astype(int)
         df['is_fall'] = (df['month_index'] == 9).astype(int)
 
+        return df
+    
+    def _add_target_variables(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Add target variables by shifting future values
+        Targets: revenue_month_1, revenue_month_2, revenue_month_3, 
+                 member_count_month_3, retention_rate_month_3
+        """
+        logger.info("Adding target variables")
+        
+        if self.multi_studio:
+            # For multi-studio data, shift within each studio group
+            df = df.sort_values(['studio_id', 'month_year']).reset_index(drop=True)
+            
+            # Create target columns by shifting future values
+            df['revenue_month_1'] = df.groupby('studio_id')['total_revenue'].shift(-1)
+            df['revenue_month_2'] = df.groupby('studio_id')['total_revenue'].shift(-2)
+            df['revenue_month_3'] = df.groupby('studio_id')['total_revenue'].shift(-3)
+            df['member_count_month_3'] = df.groupby('studio_id')['total_members'].shift(-3)
+            df['retention_rate_month_3'] = df.groupby('studio_id')['retention_rate'].shift(-3)
+        else:
+            # For single studio, simple shift
+            df = df.sort_values('month_year').reset_index(drop=True)
+            df['revenue_month_1'] = df['total_revenue'].shift(-1)
+            df['revenue_month_2'] = df['total_revenue'].shift(-2)
+            df['revenue_month_3'] = df['total_revenue'].shift(-3)
+            df['member_count_month_3'] = df['total_members'].shift(-3)
+            df['retention_rate_month_3'] = df['retention_rate'].shift(-3)
+        
+        logger.info("Target variables added successfully")
         return df
 
     def get_feature_names(self) -> List[str]:

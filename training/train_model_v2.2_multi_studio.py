@@ -21,6 +21,9 @@ import logging
 import yaml
 from datetime import datetime
 import json
+import sys
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from src.api.services.product_service_analyzer import ProductServiceAnalyzer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -412,16 +415,34 @@ def main():
     with open(output_path, 'w') as f:
         json.dump(results, f, indent=2)
     
+    # Compute product/service correlations
+    print("\nStep 10: Computing product/service correlations...")
+    print("-" * 80)
+    try:
+        # Load training data with product columns
+        data_path = 'data/processed/multi_studio_data_engineered.csv'
+        full_df = pd.read_csv(data_path)
+        train_df = full_df[full_df['split'] == 'train'].copy()
+        
+        # Initialize analyzer with training data
+        product_analyzer = ProductServiceAnalyzer(training_data=train_df)
+        
+        # Save correlation artifacts
+        correlation_output_path = Path('data/models/product_correlations_v2.2.0.pkl')
+        product_analyzer.save_correlation_artifacts(str(correlation_output_path))
+        
+        print(f"[OK] Product correlation analysis complete")
+        print(f"     Analyzed {len(product_analyzer.product_lever_correlations)} products")
+        print(f"     Artifacts saved to {correlation_output_path}")
+        
+    except Exception as e:
+        logger.warning(f"Product correlation analysis failed: {str(e)}")
+        logger.warning("Model training successful, but product insights may be limited")
+    print("-" * 80)
+    
     # Save artifacts
-    print("\nStep 10: Saving model artifacts...")
-    trainer.save_artifacts(
-        best_model_name=best_model_name,
-        feature_importance=feature_importance,
-        cv_results=cv_results,
-        test_results=test_results,
-        X_train_scaled=X_train_val_scaled,
-        version='2.2.0'
-    )
+    print("\nStep 11: Saving model artifacts...")
+    trainer.save_artifacts(best_model_name, feature_importance, X_train_scaled=X_train_val_scaled, version='2.2.0')
     
     # Final summary
     print("\n" + "="*80)

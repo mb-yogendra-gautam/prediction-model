@@ -76,12 +76,19 @@ TECHNICAL EXPLANATION (SHAP values):
 QUICK WIN RECOMMENDATIONS:
 {quick_wins}
 
+PRODUCT/SERVICE ANALYSIS:
+{product_recommendations}
+
+Based on historical correlation analysis with revenue and key performance levers (retention, attendance, pricing), 
+provide specific recommendations on which products/services to promote or demote. Include these in your 
+recommendations and explain how they align with the studio's current performance and predicted trajectory.
+
 Provide insights in clear, business-friendly language that a studio owner can understand and act upon.
 
 {format_instructions}
 """,
             input_variables=["studio_id", "total_revenue", "avg_confidence", "num_months",
-                           "monthly_predictions", "explanation", "quick_wins"],
+                           "monthly_predictions", "explanation", "quick_wins", "product_recommendations"],
             partial_variables={"format_instructions": format_instructions}
         )
 
@@ -183,7 +190,8 @@ Provide insights to help decision-makers:
         avg_confidence: float,
         predictions: List[Dict],
         explanation: Optional[Dict] = None,
-        quick_wins: Optional[List[Dict]] = None
+        quick_wins: Optional[List[Dict]] = None,
+        product_recommendations: Optional[Dict] = None
     ) -> Optional[AIInsights]:
         """
         Generate AI insights for forward predictions using LangChain LCEL
@@ -195,6 +203,7 @@ Provide insights to help decision-makers:
             predictions: List of monthly predictions
             explanation: SHAP explanation data
             quick_wins: Quick win recommendations
+            product_recommendations: Product/service recommendations from analyzer
 
         Returns:
             AIInsights object or None if generation fails
@@ -216,6 +225,9 @@ Provide insights to help decision-makers:
 
             # Format quick wins
             qw_str = self._format_quick_wins(quick_wins) if quick_wins else "No quick wins identified"
+            
+            # Format product recommendations
+            prod_str = self._format_product_recommendations(product_recommendations) if product_recommendations else "No product analysis available"
 
             # Create LCEL chain: prompt | model | parser
             chain = self.forward_prompt | self.llm | self.parser
@@ -228,7 +240,8 @@ Provide insights to help decision-makers:
                 "num_months": len(predictions),
                 "monthly_predictions": monthly_str,
                 "explanation": exp_str,
-                "quick_wins": qw_str
+                "quick_wins": qw_str,
+                "product_recommendations": prod_str
             })
 
             return insights
@@ -511,4 +524,39 @@ Provide insights to help decision-makers:
             lines.append(f"  Achievement: {scenario.get('achievement_rate', 0):.1%}")
             lines.append(f"  Confidence: {scenario.get('confidence_score', 0):.1%}")
 
+        return "\n".join(lines)
+    
+    def _format_product_recommendations(self, product_recs: Dict) -> str:
+        """Format product/service recommendations into readable text"""
+        if not product_recs:
+            return "No product recommendations available"
+        
+        lines = []
+        
+        # Products to promote
+        promote = product_recs.get('promote', [])
+        if promote:
+            lines.append("Top Products to PROMOTE (strong correlation with revenue/levers):")
+            for i, prod in enumerate(promote[:5], 1):
+                product = prod.get('product', 'Unknown')
+                correlation = prod.get('correlation', 0)
+                avg_revenue = prod.get('avg_revenue', 0)
+                reasoning = prod.get('reasoning', 'N/A')
+                lines.append(f"  {i}. {product} (correlation: {correlation:.2f}, avg revenue: ${avg_revenue:,.2f})")
+                lines.append(f"     Reasoning: {reasoning}")
+        
+        # Products to demote/review
+        demote = product_recs.get('demote', [])
+        if demote:
+            lines.append("\nProducts to REVIEW/DEMOTE (weak correlation):")
+            for i, prod in enumerate(demote[:3], 1):
+                product = prod.get('product', 'Unknown')
+                correlation = prod.get('correlation', 0)
+                reasoning = prod.get('reasoning', 'N/A')
+                lines.append(f"  {i}. {product} (correlation: {correlation:.2f})")
+                lines.append(f"     Reasoning: {reasoning}")
+        
+        if not lines:
+            return "No significant product patterns identified"
+        
         return "\n".join(lines)
