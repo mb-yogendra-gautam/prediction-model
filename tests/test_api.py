@@ -247,6 +247,133 @@ def test_forward_prediction_extended_months():
     assert confidences[0] > confidences[-1]
 
 
+def test_prediction_metrics_loaded():
+    """Test that prediction_metrics are loaded from actual model performance"""
+    request_data = {
+        "studio_id": "STU001",
+        "levers": {
+            "retention_rate": 0.75,
+            "avg_ticket_price": 150.0,
+            "class_attendance_rate": 0.70,
+            "new_members": 25,
+            "staff_utilization_rate": 0.85,
+            "upsell_rate": 0.25,
+            "total_classes_held": 120,
+            "total_members": 200
+        },
+        "projection_months": 3
+    }
+    
+    response = client.post("/api/v1/predict/forward", json=request_data)
+    assert response.status_code == 200
+    
+    data = response.json()
+    
+    # Verify prediction_metrics exist
+    assert "prediction_metrics" in data, "prediction_metrics should be present in response"
+    
+    metrics = data["prediction_metrics"]
+    
+    # Verify all expected metrics are present
+    expected_metrics = [
+        'rmse', 'mae', 'r2_score', 'mape',
+        'accuracy_within_5pct', 'accuracy_within_10pct',
+        'forecast_accuracy', 'directional_accuracy',
+        'confidence_level'
+    ]
+    
+    for metric in expected_metrics:
+        assert metric in metrics, f"{metric} should be present in prediction_metrics"
+    
+    # Verify metrics are loaded from actual model results (not hardcoded defaults)
+    # For v2.2.0 ridge model, overall_rmse should be ~535.1 (not default 2500.0)
+    # We allow for some variation due to degradation/confidence adjustments
+    assert metrics['rmse'] < 2000, \
+        f"RMSE should be based on actual model performance (~535), got {metrics['rmse']}"
+    
+    # R² should be very high for v2.2.0 (0.999), not the default 0.82
+    assert metrics['r2_score'] > 0.90, \
+        f"R² should be based on actual model performance (>0.90), got {metrics['r2_score']}"
+    
+    # MAPE should be low (~0.018 or 1.8%), not default 0.08 (8%)
+    assert metrics['mape'] < 0.05, \
+        f"MAPE should be based on actual model performance (<5%), got {metrics['mape']}"
+    
+    print(f"\n✓ Metrics loaded successfully from actual model performance:")
+    print(f"  RMSE: {metrics['rmse']:.2f}")
+    print(f"  MAE: {metrics['mae']:.2f}")
+    print(f"  R²: {metrics['r2_score']:.3f}")
+    print(f"  MAPE: {metrics['mape']:.4f}")
+
+
+def test_inverse_prediction_metrics():
+    """Test that inverse prediction also includes real metrics"""
+    request_data = {
+        "studio_id": "STU001",
+        "target_revenue": 35000.0,
+        "current_state": {
+            "retention_rate": 0.70,
+            "avg_ticket_price": 140.0,
+            "class_attendance_rate": 0.65,
+            "new_members": 20,
+            "staff_utilization_rate": 0.80,
+            "upsell_rate": 0.20,
+            "total_classes_held": 100,
+            "total_members": 180
+        },
+        "target_months": 3
+    }
+    
+    response = client.post("/api/v1/predict/inverse", json=request_data)
+    assert response.status_code == 200
+    
+    data = response.json()
+    
+    # Verify prediction_metrics exist
+    assert "prediction_metrics" in data, "prediction_metrics should be present in inverse response"
+    
+    metrics = data["prediction_metrics"]
+    
+    # Verify metrics are reasonable (based on actual model performance, not defaults)
+    assert metrics['rmse'] < 2000, "RMSE should be based on actual model performance"
+    assert metrics['r2_score'] > 0.85, "R² should be based on actual model performance"
+    
+    print(f"\n✓ Inverse prediction metrics loaded successfully:")
+    print(f"  RMSE: {metrics['rmse']:.2f}")
+    print(f"  R²: {metrics['r2_score']:.3f}")
+
+
+def test_partial_prediction_metrics():
+    """Test that partial prediction also includes real metrics"""
+    request_data = {
+        "studio_id": "STU001",
+        "input_levers": {
+            "retention_rate": 0.75,
+            "avg_ticket_price": 150.0,
+            "total_members": 200
+        },
+        "output_levers": ["total_revenue"]
+    }
+    
+    response = client.post("/api/v1/predict/partial", json=request_data)
+    assert response.status_code == 200
+    
+    data = response.json()
+    
+    # Verify prediction_metrics exist
+    assert "prediction_metrics" in data, "prediction_metrics should be present in partial response"
+    
+    metrics = data["prediction_metrics"]
+    
+    # Verify metrics are reasonable
+    assert metrics['rmse'] < 2000, "RMSE should be based on actual model performance"
+    assert metrics['r2_score'] > 0.85, "R² should be based on actual model performance"
+    
+    print(f"\n✓ Partial prediction metrics loaded successfully:")
+    print(f"  RMSE: {metrics['rmse']:.2f}")
+    print(f"  R²: {metrics['r2_score']:.3f}")
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
 

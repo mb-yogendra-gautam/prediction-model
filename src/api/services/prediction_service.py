@@ -11,6 +11,7 @@ from sklearn.linear_model import Ridge
 import logging
 
 from .optimizer import LeverOptimizer, ScenarioComparator
+from .metrics_calculator import MetricsCalculator
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +75,10 @@ class PredictionService:
         
         # Initialize scenario comparator
         self.scenario_comparator = ScenarioComparator(self.optimizer)
-        
+
+        # Initialize metrics calculator with metadata
+        self.metrics_calculator = MetricsCalculator(metadata=metadata)
+
         logger.info(f"Prediction service initialized with model version {self.version}")
 
     def predict_forward(self, request_data: Dict, include_ai_insights: bool = False) -> Dict:
@@ -217,6 +221,20 @@ class PredictionService:
                     logger.debug("Generated AI insights for forward prediction")
             except Exception as e:
                 logger.warning(f"Failed to generate AI insights: {e}")
+
+        # Calculate prediction metrics
+        try:
+            confidence_scores = [p['confidence_score'] for p in monthly_predictions]
+            metrics = self.metrics_calculator.calculate_forward_metrics(
+                predictions=monthly_predictions,
+                confidence_scores=confidence_scores,
+                lever_values=levers,
+                feature_importance=explanation.get('feature_importance') if explanation else None
+            )
+            response['prediction_metrics'] = metrics
+            logger.debug("Calculated prediction metrics")
+        except Exception as e:
+            logger.warning(f"Failed to calculate prediction metrics: {e}")
 
         logger.info(f"Forward prediction complete: ${total_revenue:.2f} over {projection_months} months")
         return response
@@ -385,6 +403,20 @@ class PredictionService:
             except Exception as e:
                 logger.warning(f"Failed to generate AI insights: {e}")
 
+        # Calculate prediction metrics
+        try:
+            metrics = self.metrics_calculator.calculate_inverse_metrics(
+                target_revenue=target_revenue,
+                achievable_revenue=achievable_revenue,
+                achievement_rate=response['achievement_rate'],
+                confidence_score=response['confidence_score'],
+                lever_changes=lever_changes
+            )
+            response['prediction_metrics'] = metrics
+            logger.debug("Calculated prediction metrics")
+        except Exception as e:
+            logger.warning(f"Failed to calculate prediction metrics: {e}")
+
         logger.info(
             f"Enhanced inverse prediction complete: ${achievable_revenue:.2f} achievable "
             f"({response['achievement_rate']*100:.1f}% of target), "
@@ -518,7 +550,7 @@ class PredictionService:
         Partial lever prediction: subset of levers → remaining levers
 
         Args:
-            request_data: Dictionary with studio_id, input_levers, output_levers
+            request_data: Dictionary with studio_id, input_levers, output_levers, projection_months
             include_ai_insights: Whether to generate AI insights using LangChain (default: False)
 
         Returns:
@@ -529,45 +561,28 @@ class PredictionService:
         studio_id = request_data['studio_id']
         input_levers = request_data['input_levers']
         output_lever_names = request_data['output_levers']
+        projection_months = request_data.get('projection_months', 3)
         
         # Get historical data
         historical_data = self.historical_data_service.get_studio_history(studio_id, n_months=12)
         
-        predicted_levers = []
+        # Fill in missing levers once for all predictions
+        complete_levers = self._fill_missing_levers(input_levers, historical_data)
         
-        # For each output lever, predict its value
-        for lever_name in output_lever_names:
-            if lever_name == 'total_revenue':
-                # Special case: predict revenue using forward model
-                # Fill in missing levers with historical averages
-                complete_levers = self._fill_missing_levers(input_levers, historical_data)
-                features = self.feature_service.engineer_features_from_levers(complete_levers, historical_data)
-                features_scaled = self.scaler.transform(features)
-                predictions = self.model.predict(features_scaled)[0]
-                predicted_value = float(predictions[0])  # Month 1 revenue
-                confidence = 0.85
-                value_range = [predicted_value * 0.9, predicted_value * 1.1]
-            
-            elif lever_name in self.lever_constraints:
-                # Predict lever value based on historical patterns and relationships
-                predicted_value, confidence = self._predict_single_lever(
-                    lever_name, 
-                    input_levers, 
-                    historical_data
-                )
-                bounds = self.lever_constraints[lever_name]
-                value_range = [max(bounds[0], predicted_value * 0.95), min(bounds[1], predicted_value * 1.05)]
-            
-            else:
-                logger.warning(f"Unknown output lever: {lever_name}")
-                continue
-            
-            predicted_levers.append({
-                'lever_name': lever_name,
-                'predicted_value': float(predicted_value),
-                'confidence_score': float(confidence),
-                'value_range': value_range
-            })
+        # Get model predictions once (used by multiple levers)
+        features = self.feature_service.engineer_features_from_levers(complete_levers, historical_data)
+        features_scaled = self.scaler.transform(features)
+        model_predictions = self.model.predict(features_scaled)[0]
+        # model_predictions shape: [revenue_month_1, revenue_month_2, revenue_month_3, member_count_month_3, retention_rate_month_3]
+        
+        # SEQUENTIAL PREDICTION: Predict month-by-month with evolving state
+        predicted_levers = self._predict_levers_sequentially(
+            output_lever_names=output_lever_names,
+            model_predictions=model_predictions,
+            initial_state=complete_levers,
+            historical_data=historical_data,
+            projection_months=projection_months
+        )
         
         # Calculate overall confidence
         overall_confidence = np.mean([pl['confidence_score'] for pl in predicted_levers]) if predicted_levers else 0.0
@@ -620,8 +635,295 @@ class PredictionService:
             except Exception as e:
                 logger.warning(f"Failed to generate AI insights: {e}")
 
+        # Calculate prediction metrics
+        try:
+            metrics = self.metrics_calculator.calculate_partial_metrics(
+                input_levers=input_levers,
+                predicted_levers=predicted_levers,
+                overall_confidence=overall_confidence
+            )
+            response['prediction_metrics'] = metrics
+            logger.debug("Calculated prediction metrics")
+        except Exception as e:
+            logger.warning(f"Failed to calculate prediction metrics: {e}")
+
         logger.info(f"Partial prediction complete: {len(predicted_levers)} levers predicted")
         return response
+
+    def _predict_levers_sequentially(
+        self,
+        output_lever_names: List[str],
+        model_predictions: np.ndarray,
+        initial_state: Dict,
+        historical_data,
+        projection_months: int
+    ) -> List[Dict]:
+        """
+        Predict levers sequentially month-by-month with evolving state
+        
+        Args:
+            output_lever_names: List of levers to predict
+            model_predictions: Model output [rev_m1, rev_m2, rev_m3, members_m3, retention_m3]
+            initial_state: Initial complete lever state
+            historical_data: Historical data for training
+            projection_months: Number of months to predict
+            
+        Returns:
+            List of predicted levers with monthly predictions
+        """
+        # Initialize state and storage
+        current_state = initial_state.copy()
+        lever_predictions_by_month = {lever: [] for lever in output_lever_names}
+        
+        # Train Ridge models once for non-model levers
+        ridge_models = {}
+        non_model_levers = [l for l in output_lever_names 
+                           if l not in ['total_revenue', 'total_members', 'retention_rate']]
+        
+        for lever_name in non_model_levers:
+            ridge_models[lever_name] = self._train_ridge_model_for_lever(
+                lever_name, historical_data
+            )
+        
+        # Predict sequentially for each month
+        for month in range(1, projection_months + 1):
+            # Get model-predicted values for this month
+            month_state = self._get_month_state(
+                model_predictions, current_state, month, projection_months
+            )
+            
+            # Update current_state with model predictions
+            current_state.update(month_state)
+            
+            # Predict each output lever using updated state
+            for lever_name in output_lever_names:
+                if lever_name in ['total_revenue', 'total_members', 'retention_rate']:
+                    # Model-predicted levers: use month_state values
+                    predicted_value = month_state.get(lever_name)
+                    confidence = max(0.5, 0.85 - ((month - 1) * 0.05))
+                    
+                elif lever_name in ridge_models:
+                    # Non-model levers: use Ridge regression with current state
+                    predicted_value, confidence = self._predict_non_model_lever_for_month(
+                        lever_name,
+                        ridge_models[lever_name],
+                        current_state,
+                        month
+                    )
+                    # Update current_state with this prediction for next month
+                    current_state[lever_name] = predicted_value
+                
+                else:
+                    logger.warning(f"Unknown output lever: {lever_name}")
+                    continue
+                
+                lever_predictions_by_month[lever_name].append({
+                    'month': month,
+                    'predicted_value': float(predicted_value),
+                    'confidence_score': float(confidence)
+                })
+        
+        # Build final predicted_levers list
+        predicted_levers = []
+        for lever_name in output_lever_names:
+            monthly_predictions = lever_predictions_by_month[lever_name]
+            
+            if not monthly_predictions:
+                continue
+            
+            # Calculate summary values from monthly predictions
+            monthly_values = [mp['predicted_value'] for mp in monthly_predictions]
+            monthly_confidences = [mp['confidence_score'] for mp in monthly_predictions]
+            
+            if lever_name == 'total_revenue':
+                # For revenue: sum across all months
+                predicted_value = sum(monthly_values)
+            else:
+                # For other levers: average across all months
+                predicted_value = np.mean(monthly_values)
+            
+            confidence = np.mean(monthly_confidences)
+            value_range = [float(min(monthly_values)), float(max(monthly_values))]
+            
+            predicted_levers.append({
+                'lever_name': lever_name,
+                'predicted_value': float(predicted_value),
+                'confidence_score': float(confidence),
+                'value_range': value_range,
+                'monthly_predictions': monthly_predictions
+            })
+        
+        return predicted_levers
+
+    def _get_month_state(
+        self,
+        model_predictions: np.ndarray,
+        current_state: Dict,
+        month: int,
+        projection_months: int
+    ) -> Dict:
+        """
+        Get lever values for a specific month from model predictions
+        
+        Args:
+            model_predictions: Model output [rev_m1, rev_m2, rev_m3, members_m3, retention_m3]
+            current_state: Current state of all levers
+            month: Month number (1-based)
+            projection_months: Total projection months
+            
+        Returns:
+            Dict with total_revenue, total_members, retention_rate for this month
+        """
+        month_state = {}
+        initial_members = current_state['total_members']
+        initial_retention = current_state['retention_rate']
+        predicted_members_m3 = float(model_predictions[3])
+        predicted_retention_m3 = float(model_predictions[4])
+        
+        # Revenue
+        if month <= 3:
+            month_state['total_revenue'] = float(model_predictions[month - 1])
+        else:
+            # Extrapolate revenue beyond month 3
+            last_revenue = float(model_predictions[2])
+            first_revenue = float(model_predictions[0])
+            growth_rate = (last_revenue - first_revenue) / (3 * first_revenue)
+            # Calculate from last known value
+            extrapolated_revenue = last_revenue
+            for _ in range(3, month):
+                extrapolated_revenue *= (1 + growth_rate)
+            month_state['total_revenue'] = extrapolated_revenue
+        
+        # Total Members
+        if month <= 3:
+            # Interpolate from current to month 3 prediction
+            progress = month / 3
+            month_state['total_members'] = initial_members + (predicted_members_m3 - initial_members) * progress
+        else:
+            # Extrapolate beyond month 3
+            growth = predicted_members_m3 - initial_members
+            monthly_growth = growth / 3
+            month_state['total_members'] = predicted_members_m3 + (month - 3) * monthly_growth
+        
+        # Retention Rate
+        if month <= 2:
+            # Use current retention for months 1-2
+            month_state['retention_rate'] = initial_retention
+        elif month == 3:
+            # Use model prediction for month 3
+            month_state['retention_rate'] = predicted_retention_m3
+        else:
+            # Extrapolate beyond month 3
+            retention_change = predicted_retention_m3 - initial_retention
+            monthly_change = retention_change / 3
+            extrapolated_retention = predicted_retention_m3 + (month - 3) * monthly_change
+            month_state['retention_rate'] = np.clip(extrapolated_retention, 0.5, 1.0)
+        
+        return month_state
+
+    def _train_ridge_model_for_lever(
+        self,
+        lever_name: str,
+        historical_data
+    ) -> Dict:
+        """
+        Train a Ridge regression model for a specific lever
+        
+        Args:
+            lever_name: Name of the lever to predict
+            historical_data: Historical data for training
+            
+        Returns:
+            Dict with 'model', 'feature_cols', and 'success' flag
+        """
+        result = {'model': None, 'feature_cols': [], 'success': False}
+        
+        if historical_data is None or len(historical_data) < 5 or lever_name not in historical_data.columns:
+            return result
+        
+        try:
+            # Prepare features: other levers (excluding target)
+            available_levers = [col for col in historical_data.columns 
+                               if col in self.lever_constraints.keys()]
+            feature_cols = [col for col in available_levers if col != lever_name]
+            
+            if len(feature_cols) < 2:
+                return result
+            
+            # Prepare training data
+            X_hist = historical_data[feature_cols].dropna()
+            y_hist = historical_data.loc[X_hist.index, lever_name]
+            
+            if len(X_hist) < 3:
+                return result
+            
+            # Train Ridge regression
+            ridge = Ridge(alpha=1.0)
+            ridge.fit(X_hist, y_hist)
+            
+            result['model'] = ridge
+            result['feature_cols'] = feature_cols
+            result['success'] = True
+            
+            logger.debug(f"Trained Ridge model for {lever_name} with features: {feature_cols}")
+            
+        except Exception as e:
+            logger.warning(f"Failed to train Ridge model for {lever_name}: {e}")
+        
+        return result
+
+    def _predict_non_model_lever_for_month(
+        self,
+        lever_name: str,
+        ridge_model_info: Dict,
+        current_state: Dict,
+        month: int
+    ) -> tuple:
+        """
+        Predict a non-model lever for a single month using trained Ridge model
+        
+        Args:
+            lever_name: Name of the lever
+            ridge_model_info: Dict with trained model and feature columns
+            current_state: Current state of all levers (evolving each month)
+            month: Month number
+            
+        Returns:
+            (predicted_value, confidence_score)
+        """
+        if not ridge_model_info['success']:
+            # Fallback: use current state value or historical average
+            if lever_name in current_state:
+                return float(current_state[lever_name]), max(0.5, 0.65 - ((month - 1) * 0.05))
+            else:
+                bounds = self.lever_constraints.get(lever_name, (0, 1))
+                return (bounds[0] + bounds[1]) / 2, 0.50
+        
+        try:
+            model = ridge_model_info['model']
+            feature_cols = ridge_model_info['feature_cols']
+            
+            # Create feature vector from current_state
+            X_pred = np.array([[current_state.get(col, 0) for col in feature_cols]])
+            predicted_value = float(model.predict(X_pred)[0])
+            
+            # Ensure within bounds
+            if lever_name in self.lever_constraints:
+                bounds = self.lever_constraints[lever_name]
+                predicted_value = np.clip(predicted_value, bounds[0], bounds[1])
+            
+            confidence = max(0.5, 0.70 - ((month - 1) * 0.05))
+            
+            return predicted_value, confidence
+            
+        except Exception as e:
+            logger.warning(f"Failed to predict {lever_name} for month {month}: {e}")
+            # Fallback
+            if lever_name in current_state:
+                return float(current_state[lever_name]), 0.50
+            else:
+                bounds = self.lever_constraints.get(lever_name, (0, 1))
+                return (bounds[0] + bounds[1]) / 2, 0.50
 
     def _fill_missing_levers(self, input_levers: Dict, historical_data) -> Dict:
         """Fill in missing levers with historical averages or reasonable defaults"""
@@ -698,6 +1000,347 @@ class PredictionService:
             confidence = 0.50
         
         return predicted_value, confidence
+
+    def _predict_revenue_monthly(
+        self,
+        model_predictions: np.ndarray,
+        projection_months: int
+    ) -> List[Dict]:
+        """
+        Predict monthly revenue using actual model outputs
+        
+        Args:
+            model_predictions: Model output array [rev_m1, rev_m2, rev_m3, members_m3, retention_m3]
+            projection_months: Number of months to predict
+            
+        Returns:
+            List of monthly predictions
+        """
+        monthly_predictions = []
+        
+        # Use model predictions for months 1-3
+        for i in range(min(projection_months, 3)):
+            revenue = float(model_predictions[i])
+            confidence = 0.85 - (i * 0.05)
+            monthly_predictions.append({
+                'month': i + 1,
+                'predicted_value': revenue,
+                'confidence_score': confidence
+            })
+        
+        # Extrapolate if projection_months > 3
+        if projection_months > 3:
+            last_revenue = monthly_predictions[-1]['predicted_value']
+            first_revenue = monthly_predictions[0]['predicted_value']
+            # Calculate growth rate from actual model predictions
+            growth_rate = (last_revenue - first_revenue) / (3 * first_revenue)
+            
+            for i in range(3, projection_months):
+                revenue = last_revenue * (1 + growth_rate)
+                monthly_predictions.append({
+                    'month': i + 1,
+                    'predicted_value': revenue,
+                    'confidence_score': max(0.5, 0.80 - (i * 0.05))
+                })
+                last_revenue = revenue
+        
+        return monthly_predictions
+
+    def _predict_total_members_monthly(
+        self,
+        model_predictions: np.ndarray,
+        complete_levers: Dict,
+        projection_months: int
+    ) -> List[Dict]:
+        """
+        Predict monthly total_members using actual model output
+        
+        Args:
+            model_predictions: Model output array [rev_m1, rev_m2, rev_m3, members_m3, retention_m3]
+            complete_levers: Complete lever values including current total_members
+            projection_months: Number of months to predict
+            
+        Returns:
+            List of monthly predictions
+        """
+        monthly_predictions = []
+        current_members = complete_levers['total_members']
+        predicted_members_m3 = float(model_predictions[3])
+        
+        # Interpolate for months 1-3
+        for i in range(min(projection_months, 3)):
+            # Linear interpolation from current to month 3 prediction
+            progress = (i + 1) / 3
+            members = current_members + (predicted_members_m3 - current_members) * progress
+            confidence = 0.85 - (i * 0.05)
+            monthly_predictions.append({
+                'month': i + 1,
+                'predicted_value': float(members),
+                'confidence_score': confidence
+            })
+        
+        # Extrapolate if projection_months > 3
+        if projection_months > 3:
+            # Calculate growth trend from months 1-3
+            growth = predicted_members_m3 - current_members
+            monthly_growth = growth / 3
+            
+            last_members = monthly_predictions[-1]['predicted_value']
+            for i in range(3, projection_months):
+                members = last_members + monthly_growth
+                monthly_predictions.append({
+                    'month': i + 1,
+                    'predicted_value': float(members),
+                    'confidence_score': max(0.5, 0.80 - (i * 0.05))
+                })
+                last_members = members
+        
+        return monthly_predictions
+
+    def _predict_retention_rate_monthly(
+        self,
+        model_predictions: np.ndarray,
+        complete_levers: Dict,
+        projection_months: int
+    ) -> List[Dict]:
+        """
+        Predict monthly retention_rate using actual model output
+        
+        Args:
+            model_predictions: Model output array [rev_m1, rev_m2, rev_m3, members_m3, retention_m3]
+            complete_levers: Complete lever values including current retention_rate
+            projection_months: Number of months to predict
+            
+        Returns:
+            List of monthly predictions
+        """
+        monthly_predictions = []
+        current_retention = complete_levers['retention_rate']
+        predicted_retention_m3 = float(model_predictions[4])
+        
+        # Interpolate for months 1-3
+        for i in range(min(projection_months, 3)):
+            if i < 2:
+                # Use current retention for months 1-2
+                retention = current_retention
+                confidence = 0.85 - (i * 0.05)
+            else:
+                # Use model prediction for month 3
+                retention = predicted_retention_m3
+                confidence = 0.75
+            
+            monthly_predictions.append({
+                'month': i + 1,
+                'predicted_value': float(retention),
+                'confidence_score': confidence
+            })
+        
+        # Extrapolate if projection_months > 3
+        if projection_months > 3:
+            # Calculate trend from current to month 3
+            retention_change = predicted_retention_m3 - current_retention
+            monthly_change = retention_change / 3
+            
+            last_retention = monthly_predictions[-1]['predicted_value']
+            for i in range(3, projection_months):
+                retention = last_retention + monthly_change
+                # Ensure within bounds
+                retention = np.clip(retention, 0.5, 1.0)
+                monthly_predictions.append({
+                    'month': i + 1,
+                    'predicted_value': float(retention),
+                    'confidence_score': max(0.5, 0.70 - ((i-3) * 0.05))
+                })
+                last_retention = retention
+        
+        return monthly_predictions
+
+    def _predict_non_model_lever_monthly(
+        self,
+        lever_name: str,
+        input_levers: Dict,
+        complete_levers: Dict,
+        historical_data,
+        projection_months: int
+    ) -> List[Dict]:
+        """
+        Predict non-model levers using Ridge regression on historical data
+        
+        Args:
+            lever_name: Name of the lever to predict
+            input_levers: User-provided input levers
+            complete_levers: Complete lever values
+            historical_data: Historical data for training
+            projection_months: Number of months to predict
+            
+        Returns:
+            List of monthly predictions
+        """
+        monthly_predictions = []
+        
+        # Try to use Ridge regression on historical data
+        if historical_data is not None and len(historical_data) > 5 and lever_name in historical_data.columns:
+            try:
+                # Prepare features from historical data
+                feature_cols = [col for col in historical_data.columns 
+                               if col in self.lever_constraints.keys() and col != lever_name]
+                
+                if len(feature_cols) >= 2:
+                    X_hist = historical_data[feature_cols].dropna()
+                    y_hist = historical_data.loc[X_hist.index, lever_name]
+                    
+                    if len(X_hist) >= 3:
+                        # Train Ridge regression
+                        ridge = Ridge(alpha=1.0)
+                        ridge.fit(X_hist, y_hist)
+                        
+                        # For each month, use complete levers to predict
+                        for i in range(projection_months):
+                            # Create feature vector from complete levers
+                            X_pred = np.array([[complete_levers.get(col, X_hist[col].mean()) 
+                                              for col in feature_cols]])
+                            predicted_value = float(ridge.predict(X_pred)[0])
+                            
+                            # Ensure within bounds
+                            if lever_name in self.lever_constraints:
+                                bounds = self.lever_constraints[lever_name]
+                                predicted_value = np.clip(predicted_value, bounds[0], bounds[1])
+                            
+                            confidence = max(0.5, 0.70 - (i * 0.05))
+                            monthly_predictions.append({
+                                'month': i + 1,
+                                'predicted_value': predicted_value,
+                                'confidence_score': confidence
+                            })
+                        
+                        return monthly_predictions
+            except Exception as e:
+                logger.warning(f"Ridge regression failed for {lever_name}: {e}")
+        
+        # Fallback: Use historical average and apply minimal change
+        if historical_data is not None and len(historical_data) > 0 and lever_name in historical_data.columns:
+            baseline = float(historical_data[lever_name].mean())
+        else:
+            # Use middle of constraint range
+            bounds = self.lever_constraints.get(lever_name, (0, 1))
+            baseline = (bounds[0] + bounds[1]) / 2
+        
+        # Generate monthly predictions with minimal variation
+        for i in range(projection_months):
+            predicted_value = baseline
+            
+            # Ensure within bounds
+            if lever_name in self.lever_constraints:
+                bounds = self.lever_constraints[lever_name]
+                predicted_value = np.clip(predicted_value, bounds[0], bounds[1])
+            
+            confidence = max(0.5, 0.65 - (i * 0.05))
+            monthly_predictions.append({
+                'month': i + 1,
+                'predicted_value': predicted_value,
+                'confidence_score': confidence
+            })
+        
+        return monthly_predictions
+
+    def _predict_lever_evolution(
+        self,
+        lever_name: str,
+        initial_value: float,
+        initial_confidence: float,
+        projection_months: int,
+        historical_data,
+        input_levers: Dict
+    ) -> List[Dict]:
+        """
+        Predict how a lever evolves over multiple months
+        
+        Args:
+            lever_name: Name of the lever
+            initial_value: Predicted value for month 1
+            initial_confidence: Confidence score for month 1
+            projection_months: Number of months to predict
+            historical_data: Historical data for trend analysis
+            input_levers: Input levers that may influence evolution
+            
+        Returns:
+            List of monthly predictions with month, predicted_value, confidence_score
+        """
+        monthly_predictions = []
+        current_value = initial_value
+        
+        # Calculate historical trend if available
+        historical_trend = 0.0
+        if historical_data is not None and len(historical_data) > 3 and lever_name in historical_data.columns:
+            recent_values = historical_data[lever_name].tail(6)
+            if len(recent_values) >= 2:
+                # Simple linear trend
+                historical_trend = (recent_values.iloc[-1] - recent_values.iloc[0]) / len(recent_values)
+        
+        # Define evolution patterns based on lever type
+        if lever_name == 'retention_rate':
+            # Retention tends to be stable or slowly improve/decline
+            monthly_change_rate = historical_trend if abs(historical_trend) > 0.001 else 0.002  # +0.2% per month default
+        
+        elif lever_name == 'avg_ticket_price':
+            # Price is strategic, generally stable month-to-month
+            monthly_change_rate = 0.0  # No month-to-month change unless strategic
+        
+        elif lever_name == 'class_attendance_rate':
+            # Attendance can vary with seasons, use historical pattern
+            monthly_change_rate = historical_trend if abs(historical_trend) > 0.001 else 0.0
+        
+        elif lever_name == 'new_members':
+            # New members can have growth trend
+            growth_rate = historical_trend if abs(historical_trend) > 0.1 else 0.5  # +0.5 per month default
+            monthly_change_rate = growth_rate
+        
+        elif lever_name == 'staff_utilization_rate':
+            # Staff utilization gradually improves toward optimal
+            optimal_utilization = 0.85
+            monthly_change_rate = (optimal_utilization - current_value) * 0.1  # 10% of gap per month
+        
+        elif lever_name == 'upsell_rate':
+            # Upsell can gradually improve with training
+            monthly_change_rate = 0.005  # +0.5% per month
+        
+        elif lever_name == 'total_classes_held':
+            # Classes tend to be stable or gradually increase
+            monthly_change_rate = historical_trend if abs(historical_trend) > 0.1 else 1.0  # +1 class per month
+        
+        elif lever_name == 'total_members':
+            # Total members = retention effect + new members
+            retention = input_levers.get('retention_rate', 0.75)
+            new_members_monthly = input_levers.get('new_members', 20)
+            # Simplified: net change = new members - churned members
+            churn_rate = 1 - retention
+            churned = current_value * churn_rate
+            monthly_change_rate = new_members_monthly - churned
+        
+        else:
+            monthly_change_rate = 0.0
+        
+        # Generate monthly predictions
+        for i in range(projection_months):
+            # Update value based on change rate
+            if i > 0:
+                current_value += monthly_change_rate
+            
+            # Ensure within bounds
+            if lever_name in self.lever_constraints:
+                bounds = self.lever_constraints[lever_name]
+                current_value = np.clip(current_value, bounds[0], bounds[1])
+            
+            # Decrease confidence over time
+            confidence = max(0.5, initial_confidence - (i * 0.05))
+            
+            monthly_predictions.append({
+                'month': i + 1,
+                'predicted_value': float(current_value),
+                'confidence_score': float(confidence)
+            })
+        
+        return monthly_predictions
 
     def _calculate_priority(self, lever_name: str, change_pct: float) -> int:
         """Calculate priority for lever change (1=highest, 10=lowest)"""

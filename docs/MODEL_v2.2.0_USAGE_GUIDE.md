@@ -247,7 +247,7 @@ This approach ensures we select the objectively best-performing model, not just 
 
 ```bash
 # Navigate to project directory
-cd "C:\projects\hackathon-2025-Studio Revenue Simulator\take-2"
+cd "C:\projects\hackathon-2025-Studio Revenue Simulator\prediction-model"
 
 # Activate virtual environment
 .\.venv\Scripts\Activate.ps1
@@ -364,6 +364,7 @@ python training/walk_forward_validation.py
 
 ```bash
 python training/business_metrics.py
+python scripts/plot_model_v2_2_0_performance.py
 ```
 
 **What This Does:**
@@ -677,6 +678,7 @@ POST /api/v1/predict/partial?include_ai_insights=true
 #### **What AI Insights Provide**
 
 AI insights include:
+
 - **Executive Summary**: High-level overview in business language
 - **Key Drivers**: Main factors affecting predictions
 - **Recommendations**: Actionable steps to improve results
@@ -767,38 +769,40 @@ Edit `config/config.yaml` to customize AI behavior:
 
 ```yaml
 openai:
-  model: "gpt-4o"  # Options: gpt-4o (optimized), gpt-4, gpt-4-turbo, gpt-3.5-turbo
-  temperature: 0.7  # Creativity level (0.0-1.0)
-  max_tokens: 1000  # Maximum response length
+  model: "gpt-4o" # Options: gpt-4o (optimized), gpt-4, gpt-4-turbo, gpt-3.5-turbo
+  temperature: 0.7 # Creativity level (0.0-1.0)
+  max_tokens: 1000 # Maximum response length
   max_retries: 3
   timeout: 30
 
 langchain:
-  verbose: false  # Enable for debugging
+  verbose: false # Enable for debugging
   enable_caching: true
   cache_ttl: 3600
 ```
 
 #### **Cost Considerations**
 
-| Model         | Cost per Request | Response Time | Use Case                   |
-| ------------- | ---------------- | ------------- | -------------------------- |
+| Model         | Cost per Request | Response Time | Use Case                    |
+| ------------- | ---------------- | ------------- | --------------------------- |
 | GPT-4o        | ~$0.015          | 1-2 seconds   | **Best quality & speed** ⭐ |
-| GPT-4         | ~$0.03           | 3-5 seconds   | High quality insights      |
-| GPT-4-turbo   | ~$0.01           | 1-2 seconds   | Balanced                   |
-| GPT-3.5-turbo | ~$0.002          | <1 second     | Cost-optimized             |
+| GPT-4         | ~$0.03           | 3-5 seconds   | High quality insights       |
+| GPT-4-turbo   | ~$0.01           | 1-2 seconds   | Balanced                    |
+| GPT-3.5-turbo | ~$0.002          | <1 second     | Cost-optimized              |
 
 **Recommendation**: Use GPT-4o for production (default) - it offers the best balance of quality, speed, and cost. GPT-4o is 2x faster than GPT-4 while being ~50% cheaper and maintaining superior quality.
 
 #### **Error Handling**
 
 If AI insights generation fails:
+
 - The API continues to work normally
 - SHAP explanations are still returned
 - A warning is logged but no error is thrown to the client
 - AI insights field is omitted from response
 
 Common failure reasons:
+
 - Missing or invalid `OPENAI_API_KEY`
 - OpenAI API rate limits exceeded
 - Network connectivity issues
@@ -838,6 +842,7 @@ Production (recommended):
 ### **Overview**
 
 Version 2.2.0 includes advanced explainability features using **SHAP (SHapley Additive exPlanations)** to help you understand:
+
 - Why the model made a specific prediction
 - Which features/levers have the most impact
 - How changing levers affects revenue (what-if analysis)
@@ -846,6 +851,7 @@ Version 2.2.0 includes advanced explainability features using **SHAP (SHapley Ad
 ### **What is SHAP?**
 
 SHAP is an industry-standard method for explaining machine learning predictions:
+
 - Mathematically rigorous (based on game theory)
 - Shows exact contribution of each feature to the prediction
 - Works perfectly with linear models like Ridge Regression
@@ -858,6 +864,7 @@ All prediction endpoints now include automatic explanations:
 #### **1. Forward Predictions (`/api/v1/predict/forward`)**
 
 **Explanations Included:**
+
 - SHAP values for all 5 targets (3 revenue months + members + retention)
 - Top 5 feature drivers per target
 - Baseline vs actual prediction breakdown
@@ -906,6 +913,7 @@ All prediction endpoints now include automatic explanations:
 #### **2. Inverse Predictions (`/api/v1/predict/inverse`)**
 
 **Explanations Included:**
+
 - Why the recommended levers achieve the target revenue
 - SHAP values for the optimized lever combination
 - Feature contributions showing the mathematical reasoning
@@ -936,6 +944,7 @@ All prediction endpoints now include automatic explanations:
 #### **3. Partial Predictions (`/api/v1/predict/partial`)**
 
 **Explanations Included:**
+
 - How input levers lead to predicted outputs
 - Feature importance for the complete lever set
 
@@ -949,6 +958,7 @@ All prediction endpoints now include automatic explanations:
 - **Sum**: baseline + sum(SHAP values) = final prediction
 
 **Example:**
+
 ```
 Baseline (expected value): $28,500
 + total_revenue contribution: +$4,200
@@ -962,22 +972,23 @@ Baseline (expected value): $28,500
 
 Understanding what each feature represents:
 
-| Feature Name | Source | Description |
-|-------------|--------|-------------|
-| `total_members` | Direct lever | Current member count |
-| `retention_rate` | Direct lever | Monthly retention rate |
-| `avg_ticket_price` | Direct lever | Average membership price |
-| `total_revenue` | Calculated | membership + class + retail revenue |
-| `prev_month_revenue` | Historical | Last month's revenue (momentum) |
-| `3m_avg_revenue` | Historical | 3-month rolling average |
-| `retention_x_ticket` | Interaction | retention × price (LTV proxy) |
-| `estimated_ltv` | Calculated | ticket price × retention × 12 months |
+| Feature Name         | Source       | Description                          |
+| -------------------- | ------------ | ------------------------------------ |
+| `total_members`      | Direct lever | Current member count                 |
+| `retention_rate`     | Direct lever | Monthly retention rate               |
+| `avg_ticket_price`   | Direct lever | Average membership price             |
+| `total_revenue`      | Calculated   | membership + class + retail revenue  |
+| `prev_month_revenue` | Historical   | Last month's revenue (momentum)      |
+| `3m_avg_revenue`     | Historical   | 3-month rolling average              |
+| `retention_x_ticket` | Interaction  | retention × price (LTV proxy)        |
+| `estimated_ltv`      | Calculated   | ticket price × retention × 12 months |
 
 ### **Quick Wins Analysis**
 
 Each forward prediction includes "quick wins" - actionable recommendations:
 
 **Quick Win Attributes:**
+
 - **Lever**: Which business lever to adjust
 - **Change**: Small adjustment (typically ≤10%)
 - **Revenue Impact**: Expected revenue increase
@@ -985,6 +996,7 @@ Each forward prediction includes "quick wins" - actionable recommendations:
 - **Actionable**: Whether change is realistic to implement
 
 **Example Use Case:**
+
 ```
 Your current retention rate: 75%
 Quick win: Increase to 82.5% (+10%)
@@ -998,6 +1010,7 @@ Action: Launch member engagement program
 The Counterfactual Service enables scenario exploration:
 
 **Available in Code:**
+
 ```python
 from src.api.services.counterfactual_service import CounterfactualService
 
@@ -1056,6 +1069,7 @@ python training/train_model_v2.2_multi_studio.py
 ```
 
 **What Gets Saved:**
+
 - `data/models/shap_background_v2.2.0.pkl` - 100 representative samples
 - Used as baseline for SHAP expected values
 - Automatically loaded by ExplainabilityService
@@ -1063,11 +1077,13 @@ python training/train_model_v2.2_multi_studio.py
 ### **Performance Impact**
 
 **Explanation Generation Time:**
+
 - SHAP calculation: ~20-40ms per prediction
 - Counterfactual analysis: ~50-100ms
 - Total overhead: <100ms (negligible for API)
 
 **Optimization:**
+
 - SHAP uses `LinearExplainer` (exact, fast for Ridge)
 - Background data cached in memory
 - Explanations generated only if service available
@@ -1075,22 +1091,27 @@ python training/train_model_v2.2_multi_studio.py
 ### **Best Practices**
 
 **1. Focus on Top Drivers**
+
 - Look at top 5 features (rank 1-5)
 - Lower-ranked features have minimal impact
 
 **2. Leverage Quick Wins**
+
 - Start with low-effort, high-impact changes
 - Quick wins are pre-filtered for actionability
 
 **3. Understand Baseline**
+
 - Base value represents "expected" prediction
 - SHAP values show deviation from expected
 
 **4. Check Feature Mappings**
+
 - Some features are derived (not direct levers)
 - Use mapping to trace back to actionable levers
 
 **5. Validate with Domain Knowledge**
+
 - SHAP shows mathematical relationships
 - Always validate recommendations make business sense
 
@@ -1099,6 +1120,7 @@ python training/train_model_v2.2_multi_studio.py
 **Issue: Explanation is None**
 
 Possible causes:
+
 - SHAP background data not available
 - Run training script to generate background data
 
@@ -1198,10 +1220,6 @@ uvicorn src.api.main:app --reload --port 8001
 
 ### **Documentation Files**
 
-- `MODEL_TRAINING_AND_DEPLOYMENT_GUIDE.md` - Detailed training guide
-- `PHASE_2_QUICK_START.md` - Quick start for Phase 2 improvements
-- `EXECUTIVE_SUMMARY_MODEL_EVALUATION.md` - Executive summary
-- `STAKEHOLDER_PRESENTATION_SUMMARY.md` - Stakeholder presentation
 - `README.md` - Project overview
 
 ### **Report Files**

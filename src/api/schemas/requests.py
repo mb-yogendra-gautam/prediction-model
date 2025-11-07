@@ -93,6 +93,7 @@ class PartialPredictionRequest(BaseModel):
     studio_id: str = Field(..., description="Unique studio identifier")
     input_levers: Dict[str, float] = Field(..., description="Known lever values")
     output_levers: List[str] = Field(..., description="Lever names to predict")
+    projection_months: int = Field(default=3, ge=1, le=12, description="Number of months to project (1-12)")
 
     class Config:
         json_schema_extra = {
@@ -107,7 +108,8 @@ class PartialPredictionRequest(BaseModel):
                     "class_attendance_rate",
                     "new_members",
                     "total_revenue"
-                ]
+                ],
+                "projection_months": 3
             }
         }
 

@@ -5,6 +5,7 @@ A machine learning-powered business intelligence platform that enables fitness s
 ## Overview
 
 The Studio Revenue Simulator uses ensemble machine learning models to provide:
+
 - **Forward Prediction**: Predict future revenue based on operational lever adjustments
 - **Inverse Prediction**: Determine optimal lever values to achieve target revenue goals
 - **AI-Powered Insights**: Generate actionable recommendations based on predicted scenarios
@@ -47,21 +48,25 @@ studio-revenue-simulator/
 ## Technology Stack
 
 ### Backend
+
 - **FastAPI**: Modern, high-performance web framework
 - **Python 3.10+**: Primary programming language
 - **Pydantic**: Data validation and settings management
 
 ### Machine Learning
+
 - **scikit-learn**: ML utilities and preprocessing
 - **XGBoost**: Gradient boosting for predictions
 - **LightGBM**: Fast gradient boosting framework
 - **MLflow**: Experiment tracking and model registry
 
 ### Database & Caching
+
 - **PostgreSQL**: Primary database with TimescaleDB extension
 - **Redis**: Caching layer for fast predictions
 
 ### AI & Analytics
+
 - **OpenAI GPT-4**: AI-powered insights and recommendations
 - **pandas & numpy**: Data manipulation and analysis
 
@@ -78,10 +83,10 @@ studio-revenue-simulator/
 
 ```bash
 git clone <repository-url>
-cd take-2
+cd prediction-model
 ```
 
-### 2. Create Virtual Environment
+### 2. Create Virtual Environment (You can use uv as well)
 
 ```bash
 python -m venv venv
@@ -136,6 +141,7 @@ uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --workers 4
 ### 8. Access API Documentation
 
 Open your browser and navigate to:
+
 - **Swagger UI**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
 
@@ -204,6 +210,7 @@ The platform supports the following adjustable business levers:
 ## Model Performance
 
 The ensemble model achieves:
+
 - **RMSE**: < $3,000 for monthly revenue predictions
 - **MAPE**: < 8% mean absolute percentage error
 - **R² Score**: > 0.85 goodness of fit
@@ -290,6 +297,7 @@ Adjust model hyperparameters in `config/model_config.yaml`
 ### Prediction Logging
 
 All predictions are logged to the database for:
+
 - Model performance tracking
 - Prediction accuracy analysis
 - Business insights
@@ -297,6 +305,7 @@ All predictions are logged to the database for:
 ### Performance Metrics
 
 Monitor API performance:
+
 - Forward prediction latency: < 200ms (p95)
 - Inverse optimization latency: < 1000ms (p95)
 - Cache hit rate: > 60%
@@ -306,18 +315,21 @@ Monitor API performance:
 ### Common Issues
 
 **Issue**: Module not found errors
+
 ```bash
 # Solution: Install dependencies
 pip install -r requirements.txt
 ```
 
 **Issue**: Database connection errors
+
 ```bash
 # Solution: Check PostgreSQL is running
 # Verify DATABASE_URL in .env
 ```
 
 **Issue**: Redis connection errors
+
 ```bash
 # Solution: Start Redis server
 redis-server

@@ -3,7 +3,7 @@ MODEL VALIDATION AUDIT REPORT
 ================================================================================
 
 Model Version:      1.0.0
-Evaluation Date:    2025-11-05 20:40:29
+Evaluation Date:    2025-11-07 18:02:16
 Evaluator:          Automated Model Validation System
 
 --------------------------------------------------------------------------------
@@ -21,10 +21,10 @@ EXECUTIVE SUMMARY
    Average R²:        -1.1569
 
 3. BUSINESS METRICS (Test Set)
-   Predictions within ±5%:   55.56%
-   Predictions within ±10%:  85.19%
-   Forecast Accuracy:        94.81%
-   Business Impact Score:    92.75/100
+   Predictions within ±5%:   59.26%
+   Predictions within ±10%:  88.89%
+   Forecast Accuracy:        94.85%
+   Business Impact Score:    93.26/100
 
 4. MODEL COMPARISON
    XGBoost RMSE:      1857.98
@@ -157,27 +157,27 @@ BUSINESS PERFORMANCE METRICS
 --------------------------------------------------------------------------------
 
 1. ACCURACY THRESHOLDS
-   Within ±5%:       55.56%
-   Within ±10%:      85.19%
+   Within ±5%:       59.26%
+   Within ±10%:      88.89%
    Large Errors:     7.41%
 
 2. FORECAST QUALITY
-   3-Month Accuracy:   94.81%
-   Directional Acc:    33.33%
-   Trend Consistency:  37.5%
+   3-Month Accuracy:   94.85%
+   Directional Acc:    44.44%
+   Trend Consistency:  75.0%
 
 3. HORIZON-SPECIFIC MAPE
-   Month 1:  4.25%
+   Month 1:  4.17%
    Month 2:  4.86%
-   Month 3:  6.19%
+   Month 3:  6.08%
 
 4. QUARTERLY METRICS
-   Quarterly MAPE:       5.19%
+   Quarterly MAPE:       5.15%
    Within ±5%:           44.44%
    Within ±10%:          100.0%
 
 5. BUSINESS IMPACT
-   Impact Score:     92.75/100
+   Impact Score:     93.26/100
 
 6. ASSESSMENT
    [OK] EXCELLENT - High business value, low prediction errors
@@ -233,5 +233,5 @@ VISUALIZATIONS:
 
 ================================================================================
 END OF AUDIT REPORT
-Generated: 2025-11-05 20:40:29
+Generated: 2025-11-07 18:02:16
 ================================================================================
