@@ -4,8 +4,10 @@ Prediction Service for Forward, Inverse, and Partial Predictions
 
 import numpy as np
 import uuid
-from typing import Dict, List, Any
+import pandas as pd
+from typing import Dict, List, Any, Optional
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
 from scipy.optimize import minimize
 from sklearn.linear_model import Ridge
 import logging
@@ -29,7 +31,9 @@ class PredictionService:
         explainability_service=None,
         counterfactual_service=None,
         ai_insights_service=None,
-        product_service_analyzer=None
+        product_service_analyzer=None,
+        feature_selector=None,
+        selected_features=None
     ):
         """
         Initialize prediction service
@@ -44,6 +48,8 @@ class PredictionService:
             counterfactual_service: Optional counterfactual service for what-if analysis
             ai_insights_service: Optional AI insights service for generating business insights with LangChain
             product_service_analyzer: Optional product/service analyzer for correlation-based recommendations
+            feature_selector: Optional feature selector (for daily models)
+            selected_features: Optional list of selected features (for daily models)
         """
         self.model = model
         self.scaler = scaler
@@ -51,10 +57,15 @@ class PredictionService:
         self.historical_data_service = historical_data_service
         self.metadata = metadata
         self.version = metadata.get('version', 'unknown')
+        self.granularity = metadata.get('granularity', 'monthly')  # 'monthly' or 'daily'
         self.explainability_service = explainability_service
         self.counterfactual_service = counterfactual_service
         self.ai_insights_service = ai_insights_service
         self.product_service_analyzer = product_service_analyzer
+        
+        # v2.3.0 now predicts monthly targets directly using daily pattern features
+        # No need for DailyPredictionEngine - predictions are already monthly
+        logger.info(f"Prediction service initialized for {self.granularity} predictions")
         
         # Lever constraints for optimization
         self.lever_constraints = {
@@ -87,6 +98,9 @@ class PredictionService:
     def predict_forward(self, request_data: Dict, include_ai_insights: bool = False) -> Dict:
         """
         Forward prediction: levers → revenue
+        
+        Both v2.2.0 and v2.3.0 predict monthly targets directly.
+        v2.3.0 includes daily pattern features for improved accuracy.
 
         Args:
             request_data: Dictionary with studio_id, levers, projection_months
@@ -95,8 +109,22 @@ class PredictionService:
         Returns:
             Dictionary with predictions and metadata
         """
-        logger.info(f"Forward prediction for studio {request_data['studio_id']}")
+        logger.info(f"Forward prediction for studio {request_data['studio_id']} (model: v{self.version})")
         
+        # All models now use the same prediction method
+        return self._predict_forward_monthly(request_data, include_ai_insights)
+    
+    def _predict_forward_monthly(self, request_data: Dict, include_ai_insights: bool = False) -> Dict:
+        """
+        Forward prediction using monthly model (v2.2.0 and earlier)
+        
+        Args:
+            request_data: Dictionary with studio_id, levers, projection_months
+            include_ai_insights: Whether to generate AI insights
+            
+        Returns:
+            Dictionary with predictions and metadata
+        """
         studio_id = request_data['studio_id']
         levers = request_data['levers']
         projection_months = request_data.get('projection_months', 3)
@@ -590,6 +618,17 @@ class PredictionService:
         features_scaled = self.scaler.transform(features)
         model_predictions = self.model.predict(features_scaled)[0]
         # model_predictions shape: [revenue_month_1, revenue_month_2, revenue_month_3, member_count_month_3, retention_rate_month_3]
+        
+        # Validate prediction shape
+        if len(model_predictions) != 5:
+            error_msg = f"Model returned {len(model_predictions)} predictions, expected 5. "
+            error_msg += f"Predictions: {model_predictions}. "
+            error_msg += f"Model type: {type(self.model).__name__}, "
+            error_msg += f"Has estimators: {hasattr(self.model, 'estimators_')}, "
+            if hasattr(self.model, 'estimators_'):
+                error_msg += f"Number of estimators: {len(self.model.estimators_)}"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
         
         # SEQUENTIAL PREDICTION: Predict month-by-month with evolving state
         predicted_levers = self._predict_levers_sequentially(

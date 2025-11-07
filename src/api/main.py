@@ -42,16 +42,26 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 60)
     
     try:
-        # Load model
+        # Load model - use v2.3.0 for daily predictions or v2.2.0 for monthly
         logger.info("Loading model artifacts...")
         registry = ModelRegistry(base_dir="data/models")
-        model_artifacts = registry.load_model(version="2.2.0")
+        
+        # Try to load v2.3.0 (daily model), fall back to v2.2.0 (monthly model)
+        try:
+            model_artifacts = registry.load_model(version="2.3.0")
+            logger.info("✓ Loaded daily time series model v2.3.0")
+        except Exception as e:
+            logger.warning(f"Could not load v2.3.0, falling back to v2.2.0: {e}")
+            model_artifacts = registry.load_model(version="2.2.0")
+            logger.info("✓ Loaded monthly model v2.2.0")
+        
         app_state['model_artifacts'] = model_artifacts
         app_state['registry'] = registry
         
         logger.info(f"✓ Model version: {model_artifacts['version']}")
         logger.info(f"✓ Model type: {model_artifacts['metadata'].get('best_model', 'unknown')}")
         logger.info(f"✓ Number of features: {model_artifacts['metadata'].get('n_features', 'unknown')}")
+        logger.info(f"✓ Granularity: {model_artifacts['metadata'].get('granularity', 'monthly')}")
         
         # Initialize services
         logger.info("Initializing services...")
@@ -115,7 +125,7 @@ async def lifespan(app: FastAPI):
             logger.warning("Product recommendations will not be available")
             app_state['product_service_analyzer'] = None
 
-        # Prediction service
+        # Prediction service (with daily model support)
         prediction_service = PredictionService(
             model=model_artifacts['model'],
             scaler=model_artifacts['scaler'],
@@ -125,7 +135,9 @@ async def lifespan(app: FastAPI):
             explainability_service=explainability_service,
             counterfactual_service=counterfactual_service,
             ai_insights_service=ai_insights_service,
-            product_service_analyzer=product_service_analyzer
+            product_service_analyzer=product_service_analyzer,
+            feature_selector=model_artifacts.get('feature_selector'),  # For daily models
+            selected_features=model_artifacts.get('selected_features')  # For daily models
         )
         app_state['prediction_service'] = prediction_service
 

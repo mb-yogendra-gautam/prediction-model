@@ -13,13 +13,20 @@ logger = logging.getLogger(__name__)
 class ExplainabilityService:
     """Service for generating explanations for model predictions using SHAP"""
 
-    # Target names for the 5 model outputs
-    TARGET_NAMES = [
+    # Default target names for monthly models (5 outputs)
+    DEFAULT_TARGET_NAMES = [
         'revenue_month_1',
         'revenue_month_2',
         'revenue_month_3',
         'member_count_month_3',
         'retention_rate_month_3'
+    ]
+    
+    # Target names for daily models (3 outputs)
+    DAILY_TARGET_NAMES = [
+        'daily_revenue',
+        'daily_members',
+        'daily_retention'
     ]
 
     # Target units for formatting
@@ -28,7 +35,10 @@ class ExplainabilityService:
         'revenue_month_2': '$',
         'revenue_month_3': '$',
         'member_count_month_3': 'members',
-        'retention_rate_month_3': 'rate'
+        'retention_rate_month_3': 'rate',
+        'daily_revenue': '$',
+        'daily_members': 'members',
+        'daily_retention': 'rate'
     }
 
     def __init__(
@@ -42,7 +52,7 @@ class ExplainabilityService:
         Initialize explainability service
 
         Args:
-            model: Trained MultiOutputRegressor with Ridge estimators
+            model: Trained MultiOutputRegressor
             scaler: StandardScaler for feature scaling
             feature_names: List of feature names in order
             background_data: Optional background dataset for SHAP (scaled features)
@@ -52,29 +62,65 @@ class ExplainabilityService:
         self.feature_names = feature_names
         self.background_data = background_data
 
-        # Initialize SHAP explainers for each target (5 total)
+        # Detect number of outputs and set appropriate target names
+        n_outputs = len(model.estimators_)
+        if n_outputs == 3:
+            self.TARGET_NAMES = self.DAILY_TARGET_NAMES
+            logger.info("Detected daily model with 3 outputs")
+        elif n_outputs == 5:
+            self.TARGET_NAMES = self.DEFAULT_TARGET_NAMES
+            logger.info("Detected monthly model with 5 outputs")
+        else:
+            # Generic names for unknown output counts
+            self.TARGET_NAMES = [f'output_{i+1}' for i in range(n_outputs)]
+            logger.warning(f"Detected {n_outputs} outputs, using generic names")
+
+        # Initialize SHAP explainers for each target
         self.explainers = {}
         self._initialize_explainers()
 
-        logger.info(f"ExplainabilityService initialized with {len(feature_names)} features")
+        logger.info(f"ExplainabilityService initialized with {len(feature_names)} features and {n_outputs} outputs")
         logger.info(f"Background data: {'Provided' if background_data is not None else 'None - using zero baseline'}")
 
     def _initialize_explainers(self):
-        """Initialize SHAP LinearExplainer for each of the 5 targets"""
+        """Initialize appropriate SHAP explainer based on model type"""
         try:
             # For MultiOutputRegressor, we need separate explainer for each estimator
             for idx, target_name in enumerate(self.TARGET_NAMES):
                 estimator = self.model.estimators_[idx]
-
-                # LinearExplainer is fast and exact for Ridge regression
-                if self.background_data is not None:
-                    explainer = shap.LinearExplainer(estimator, self.background_data)
+                
+                # Determine model type and use appropriate explainer
+                model_type = type(estimator).__name__
+                
+                if 'GradientBoosting' in model_type or 'RandomForest' in model_type or 'Tree' in model_type:
+                    # Use TreeExplainer for tree-based models
+                    logger.info(f"Using TreeExplainer for {model_type}")
+                    if self.background_data is not None:
+                        explainer = shap.TreeExplainer(estimator, self.background_data)
+                    else:
+                        explainer = shap.TreeExplainer(estimator)
+                        
+                elif 'Ridge' in model_type or 'ElasticNet' in model_type or 'Linear' in model_type:
+                    # Use LinearExplainer for linear models
+                    logger.info(f"Using LinearExplainer for {model_type}")
+                    if self.background_data is not None:
+                        explainer = shap.LinearExplainer(estimator, self.background_data)
+                    else:
+                        # Use zero baseline if no background data
+                        explainer = shap.LinearExplainer(
+                            estimator,
+                            np.zeros((1, len(self.feature_names)))
+                        )
                 else:
-                    # Use zero baseline if no background data
-                    explainer = shap.LinearExplainer(
-                        estimator,
-                        np.zeros((1, len(self.feature_names)))
-                    )
+                    # Fallback to KernelExplainer for unknown model types
+                    logger.warning(f"Unknown model type {model_type}, using KernelExplainer (slower)")
+                    if self.background_data is not None:
+                        explainer = shap.KernelExplainer(estimator.predict, self.background_data[:100])
+                    else:
+                        explainer = shap.KernelExplainer(
+                            estimator.predict, 
+                            np.zeros((1, len(self.feature_names)))
+                        )
 
                 self.explainers[target_name] = explainer
 
