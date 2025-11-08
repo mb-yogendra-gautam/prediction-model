@@ -208,55 +208,63 @@ class MetricsCalculator:
         try:
             # Calculate average prediction horizon
             avg_horizon = np.mean([p.get('month', 1) for p in predictions])
-
-            # Get degradation factor based on horizon
-            degradation = self._get_horizon_degradation(avg_horizon)
-
-            # Calculate confidence-adjusted metrics
             avg_confidence = np.mean(confidence_scores) if confidence_scores else 0.75
-            confidence_factor = avg_confidence  # Higher confidence = better metrics
-
-            # Calculate lever quality score
-            lever_quality = self._assess_lever_quality(lever_values)
-
-            # Combine factors
-            quality_factor = confidence_factor * lever_quality
-
-            # Calculate metrics with adjustments
-            rmse = self.BASELINE_METRICS['rmse'] * degradation * (2.0 - quality_factor)
-            mae = self.BASELINE_METRICS['mae'] * degradation * (2.0 - quality_factor)
-            r2_score = max(0.0, min(1.0, self.BASELINE_METRICS['r2_score'] * quality_factor / degradation))
-            mape = self.BASELINE_METRICS['mape'] * degradation * (2.0 - quality_factor)
-
-            # Business metrics
-            accuracy_5pct = max(0.0, min(1.0, self.BASELINE_METRICS['accuracy_within_5pct'] * quality_factor / degradation))
-            accuracy_10pct = max(0.0, min(1.0, self.BASELINE_METRICS['accuracy_within_10pct'] * quality_factor / degradation))
-            forecast_accuracy = max(0.0, min(1.0, self.BASELINE_METRICS['forecast_accuracy'] * quality_factor / degradation))
-            directional_accuracy = max(0.0, min(1.0, self.BASELINE_METRICS['directional_accuracy'] * quality_factor / (degradation ** 0.5)))
 
             # Determine confidence level
             confidence_level = self._get_confidence_level(avg_confidence, avg_horizon)
+            
+            # Build confidence factors explanation
+            confidence_factors = []
+            if avg_confidence >= 0.8:
+                confidence_factors.append("high confidence scores across predictions")
+            elif avg_confidence >= 0.6:
+                confidence_factors.append("moderate confidence scores")
+            else:
+                confidence_factors.append("lower confidence due to data uncertainty")
+            
+            if avg_horizon <= 1.5:
+                confidence_factors.append("short-term forecast (1-2 months)")
+            elif avg_horizon <= 2.5:
+                confidence_factors.append("medium-term forecast (2-3 months)")
+            else:
+                confidence_factors.append("longer-term forecast (3+ months)")
 
             # Calculate percentage metrics if mean_revenue is provided
             if mean_revenue and mean_revenue > 0:
-                rmse_pct = (rmse / mean_revenue) * 100
-                mae_pct = (mae / mean_revenue) * 100
+                rmse_pct = (self.BASELINE_METRICS['rmse'] / mean_revenue) * 100
+                mae_pct = (self.BASELINE_METRICS['mae'] / mean_revenue) * 100
             else:
                 rmse_pct = None
                 mae_pct = None
 
             return {
-                'rmse': round(rmse, 2),
-                'mae': round(mae, 2),
+                # REAL model performance (NO DEGRADATION)
+                'rmse': round(self.BASELINE_METRICS['rmse'], 2),
+                'mae': round(self.BASELINE_METRICS['mae'], 2),
                 'rmse_pct': round(rmse_pct, 2) if rmse_pct is not None else None,
                 'mae_pct': round(mae_pct, 2) if mae_pct is not None else None,
-                'r2_score': round(r2_score, 3),
-                'mape': round(mape, 4),
-                'accuracy_within_5pct': round(accuracy_5pct, 3),
-                'accuracy_within_10pct': round(accuracy_10pct, 3),
-                'forecast_accuracy': round(forecast_accuracy, 3),
-                'directional_accuracy': round(directional_accuracy, 3),
-                'confidence_level': confidence_level
+                'r2_score': round(self.BASELINE_METRICS['r2_score'], 3),
+                'mape': round(self.BASELINE_METRICS['mape'], 4),
+                'accuracy_within_5pct': round(self.BASELINE_METRICS['accuracy_within_5pct'], 3),
+                'accuracy_within_10pct': round(self.BASELINE_METRICS['accuracy_within_10pct'], 3),
+                'forecast_accuracy': round(self.BASELINE_METRICS['forecast_accuracy'], 3),
+                'directional_accuracy': round(self.BASELINE_METRICS['directional_accuracy'], 3),
+                
+                # SEPARATE confidence information
+                'prediction_confidence': round(avg_confidence, 3),
+                'confidence_level': confidence_level,
+                'confidence_factors': confidence_factors,
+                'prediction_horizon_months': round(avg_horizon, 1),
+                
+                # Clear interpretation
+                'interpretation': (
+                    f"Model performance: R²={self.BASELINE_METRICS['r2_score']:.3f}, "
+                    f"RMSE=${self.BASELINE_METRICS['rmse']:.0f}, "
+                    f"MAE=${self.BASELINE_METRICS['mae']:.0f} (actual test set results). "
+                    f"This prediction has {confidence_level} confidence ({avg_confidence:.0%}) "
+                    f"with {', '.join(confidence_factors)}."
+                ),
+                'metrics_source': 'test_set_validation'
             }
 
         except Exception as e:
@@ -287,56 +295,73 @@ class MetricsCalculator:
             Dictionary with calculated metrics
         """
         try:
-            # Calculate feasibility score
-            feasibility = achievement_rate
-
-            # Calculate lever change magnitude
+            # Calculate context for optimization
             avg_change = np.mean([abs(lc.get('change_percentage', 0)) for lc in lever_changes]) if lever_changes else 0
-            change_factor = 1.0 + (avg_change / 100.0)  # Larger changes = more uncertainty
-
-            # Adjust metrics based on feasibility and change magnitude
-            quality_factor = confidence_score * feasibility / change_factor
-
-            # Calculate metrics
-            rmse = self.BASELINE_METRICS['rmse'] * (2.0 - quality_factor) * 1.2  # Inverse is slightly less accurate
-            mae = self.BASELINE_METRICS['mae'] * (2.0 - quality_factor) * 1.2
-            r2_score = max(0.0, min(1.0, self.BASELINE_METRICS['r2_score'] * quality_factor * 0.9))
-            mape = self.BASELINE_METRICS['mape'] * (2.0 - quality_factor) * 1.2
-
-            # Business metrics
-            accuracy_5pct = max(0.0, min(1.0, self.BASELINE_METRICS['accuracy_within_5pct'] * quality_factor * 0.9))
-            accuracy_10pct = max(0.0, min(1.0, self.BASELINE_METRICS['accuracy_within_10pct'] * quality_factor * 0.95))
-            forecast_accuracy = max(0.0, min(1.0, achievement_rate * confidence_score))
-            directional_accuracy = max(0.0, min(1.0, self.BASELINE_METRICS['directional_accuracy'] * confidence_score))
-
-            # Confidence level based on achievement rate
+            
+            # Determine confidence level
             if achievement_rate >= 0.95 and confidence_score >= 0.8:
                 confidence_level = "High"
             elif achievement_rate >= 0.80 and confidence_score >= 0.6:
                 confidence_level = "Medium"
             else:
                 confidence_level = "Low"
+            
+            # Build confidence factors
+            confidence_factors = []
+            if achievement_rate >= 0.95:
+                confidence_factors.append(f"can achieve {achievement_rate:.0%} of target")
+            elif achievement_rate >= 0.80:
+                confidence_factors.append(f"can achieve {achievement_rate:.0%} of target")
+            else:
+                confidence_factors.append(f"limited to {achievement_rate:.0%} of target")
+            
+            if avg_change <= 15:
+                confidence_factors.append(f"minor lever changes (avg {avg_change:.1f}%)")
+            elif avg_change <= 30:
+                confidence_factors.append(f"moderate lever changes (avg {avg_change:.1f}%)")
+            else:
+                confidence_factors.append(f"significant lever changes (avg {avg_change:.1f}%)")
+            
+            confidence_factors.append(f"{len(lever_changes)} levers to adjust")
 
             # Calculate percentage metrics if mean_revenue is provided
             if mean_revenue and mean_revenue > 0:
-                rmse_pct = (rmse / mean_revenue) * 100
-                mae_pct = (mae / mean_revenue) * 100
+                rmse_pct = (self.BASELINE_METRICS['rmse'] / mean_revenue) * 100
+                mae_pct = (self.BASELINE_METRICS['mae'] / mean_revenue) * 100
             else:
                 rmse_pct = None
                 mae_pct = None
 
             return {
-                'rmse': round(rmse, 2),
-                'mae': round(mae, 2),
+                # REAL model performance (NO DEGRADATION)
+                'rmse': round(self.BASELINE_METRICS['rmse'], 2),
+                'mae': round(self.BASELINE_METRICS['mae'], 2),
                 'rmse_pct': round(rmse_pct, 2) if rmse_pct is not None else None,
                 'mae_pct': round(mae_pct, 2) if mae_pct is not None else None,
-                'r2_score': round(r2_score, 3),
-                'mape': round(mape, 4),
-                'accuracy_within_5pct': round(accuracy_5pct, 3),
-                'accuracy_within_10pct': round(accuracy_10pct, 3),
-                'forecast_accuracy': round(forecast_accuracy, 3),
-                'directional_accuracy': round(directional_accuracy, 3),
-                'confidence_level': confidence_level
+                'r2_score': round(self.BASELINE_METRICS['r2_score'], 3),
+                'mape': round(self.BASELINE_METRICS['mape'], 4),
+                'accuracy_within_5pct': round(self.BASELINE_METRICS['accuracy_within_5pct'], 3),
+                'accuracy_within_10pct': round(self.BASELINE_METRICS['accuracy_within_10pct'], 3),
+                'forecast_accuracy': round(self.BASELINE_METRICS['forecast_accuracy'], 3),
+                'directional_accuracy': round(self.BASELINE_METRICS['directional_accuracy'], 3),
+                
+                # SEPARATE optimization confidence
+                'optimization_confidence': round(confidence_score, 3),
+                'confidence_level': confidence_level,
+                'confidence_factors': confidence_factors,
+                'target_achievement_rate': round(achievement_rate, 3),
+                'avg_lever_change_pct': round(avg_change, 2),
+                'n_lever_changes': len(lever_changes),
+                
+                # Clear interpretation
+                'interpretation': (
+                    f"Model performance: R²={self.BASELINE_METRICS['r2_score']:.3f}, "
+                    f"RMSE=${self.BASELINE_METRICS['rmse']:.0f}, "
+                    f"MAE=${self.BASELINE_METRICS['mae']:.0f} (actual test set results). "
+                    f"Optimization: {confidence_level} confidence ({confidence_score:.0%}) - "
+                    f"{', '.join(confidence_factors)}."
+                ),
+                'metrics_source': 'test_set_validation'
             }
 
         except Exception as e:
@@ -363,49 +388,71 @@ class MetricsCalculator:
             Dictionary with calculated metrics
         """
         try:
-            # Calculate ratio of known vs predicted levers
+            # Calculate context about the prediction
             n_known = len(input_levers)
             n_predicted = len(predicted_levers)
             known_ratio = n_known / (n_known + n_predicted) if (n_known + n_predicted) > 0 else 0.5
 
-            # More known levers = better predictions
-            quality_factor = overall_confidence * (0.7 + 0.3 * known_ratio)
-
-            # Calculate metrics with partial prediction adjustment
-            rmse = self.BASELINE_METRICS['rmse'] * (2.0 - quality_factor) * 1.1  # Slightly less accurate
-            mae = self.BASELINE_METRICS['mae'] * (2.0 - quality_factor) * 1.1
-            r2_score = max(0.0, min(1.0, self.BASELINE_METRICS['r2_score'] * quality_factor * 0.92))
-            mape = self.BASELINE_METRICS['mape'] * (2.0 - quality_factor) * 1.1
-
-            # Business metrics
-            accuracy_5pct = max(0.0, min(1.0, self.BASELINE_METRICS['accuracy_within_5pct'] * quality_factor * 0.92))
-            accuracy_10pct = max(0.0, min(1.0, self.BASELINE_METRICS['accuracy_within_10pct'] * quality_factor * 0.96))
-            forecast_accuracy = max(0.0, min(1.0, self.BASELINE_METRICS['forecast_accuracy'] * quality_factor * 0.93))
-            directional_accuracy = max(0.0, min(1.0, self.BASELINE_METRICS['directional_accuracy'] * quality_factor * 0.95))
-
-            # Confidence level
+            # Determine confidence level
             confidence_level = self._get_confidence_level(overall_confidence, horizon=1.5)
+            
+            # Build confidence context explanation
+            confidence_factors = []
+            if known_ratio >= 0.6:
+                confidence_factors.append(f"{n_known}/{n_known + n_predicted} levers known (high completeness)")
+            elif known_ratio >= 0.4:
+                confidence_factors.append(f"{n_known}/{n_known + n_predicted} levers known (moderate completeness)")
+            else:
+                confidence_factors.append(f"{n_known}/{n_known + n_predicted} levers known (limited data)")
+            
+            if overall_confidence >= 0.8:
+                confidence_factors.append("strong historical patterns")
+            elif overall_confidence >= 0.6:
+                confidence_factors.append("moderate historical patterns")
+            else:
+                confidence_factors.append("limited historical patterns")
 
             # Calculate percentage metrics if mean_revenue is provided
             if mean_revenue and mean_revenue > 0:
-                rmse_pct = (rmse / mean_revenue) * 100
-                mae_pct = (mae / mean_revenue) * 100
+                rmse_pct = (self.BASELINE_METRICS['rmse'] / mean_revenue) * 100
+                mae_pct = (self.BASELINE_METRICS['mae'] / mean_revenue) * 100
             else:
                 rmse_pct = None
                 mae_pct = None
 
+            # Return ACTUAL model metrics without degradation
             return {
-                'rmse': round(rmse, 2),
-                'mae': round(mae, 2),
+                # REAL model performance from test set (NO ARTIFICIAL DEGRADATION)
+                'rmse': round(self.BASELINE_METRICS['rmse'], 2),
+                'mae': round(self.BASELINE_METRICS['mae'], 2),
                 'rmse_pct': round(rmse_pct, 2) if rmse_pct is not None else None,
                 'mae_pct': round(mae_pct, 2) if mae_pct is not None else None,
-                'r2_score': round(r2_score, 3),
-                'mape': round(mape, 4),
-                'accuracy_within_5pct': round(accuracy_5pct, 3),
-                'accuracy_within_10pct': round(accuracy_10pct, 3),
-                'forecast_accuracy': round(forecast_accuracy, 3),
-                'directional_accuracy': round(directional_accuracy, 3),
-                'confidence_level': confidence_level
+                'r2_score': round(self.BASELINE_METRICS['r2_score'], 3),
+                'mape': round(self.BASELINE_METRICS['mape'], 4),
+                'accuracy_within_5pct': round(self.BASELINE_METRICS['accuracy_within_5pct'], 3),
+                'accuracy_within_10pct': round(self.BASELINE_METRICS['accuracy_within_10pct'], 3),
+                'forecast_accuracy': round(self.BASELINE_METRICS['forecast_accuracy'], 3),
+                'directional_accuracy': round(self.BASELINE_METRICS['directional_accuracy'], 3),
+                
+                # SEPARATE confidence score and context (not mixed with accuracy)
+                'prediction_confidence': round(overall_confidence, 3),
+                'confidence_level': confidence_level,
+                'confidence_factors': confidence_factors,
+                
+                # Prediction context
+                'n_known_levers': n_known,
+                'n_predicted_levers': n_predicted,
+                'known_lever_ratio': round(known_ratio, 2),
+                
+                # Clear interpretation
+                'interpretation': (
+                    f"Model performance: R²={self.BASELINE_METRICS['r2_score']:.3f}, "
+                    f"RMSE=${self.BASELINE_METRICS['rmse']:.0f}, "
+                    f"MAE=${self.BASELINE_METRICS['mae']:.0f} (actual test set results). "
+                    f"This prediction has {confidence_level} confidence ({overall_confidence:.0%}) "
+                    f"based on {', '.join(confidence_factors)}."
+                ),
+                'metrics_source': 'test_set_validation'
             }
 
         except Exception as e:

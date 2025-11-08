@@ -16,7 +16,8 @@ from src.api.services.explainability_service import ExplainabilityService
 from src.api.services.counterfactual_service import CounterfactualService
 from src.api.services.ai_insights_service import AIInsightsService
 from src.api.services.product_service_analyzer import ProductServiceAnalyzer
-from src.api.routes import predictions
+from src.api.services.slack_service import SlackService
+from src.api.routes import predictions, notifications
 from src.api.schemas.responses import HealthCheckResponse
 from src.utils.response_formatter import round_numeric_values
 import pandas as pd
@@ -133,6 +134,17 @@ async def lifespan(app: FastAPI):
         predictions.set_prediction_service(prediction_service)
         logger.info("✓ Prediction service initialized")
         
+        # Slack service (optional - will warn if token not available)
+        try:
+            slack_service = SlackService()
+            app_state['slack_service'] = slack_service
+            notifications.set_slack_service(slack_service)
+            logger.info("✓ Slack service initialized")
+        except ValueError as e:
+            logger.warning(f"Slack service initialization failed: {e}")
+            logger.warning("Slack notifications will not be available. Set SLACK_BOT_TOKEN environment variable to enable.")
+            app_state['slack_service'] = None
+        
         logger.info("=" * 60)
         logger.info("API startup complete! Server ready to accept requests.")
         logger.info("=" * 60)
@@ -172,6 +184,12 @@ app.include_router(
     predictions.router,
     prefix="/api/v1/predict",
     tags=["Predictions"]
+)
+
+app.include_router(
+    notifications.router,
+    prefix="/api/v1/notifications/slack",
+    tags=["Notifications"]
 )
 
 

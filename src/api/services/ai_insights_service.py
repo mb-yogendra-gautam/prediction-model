@@ -85,6 +85,14 @@ recommendations and explain how they align with the studio's current performance
 
 Provide insights in clear, business-friendly language that a studio owner can understand and act upon.
 
+PRESENTATION STYLE:
+Make your insights engaging and intuitive by:
+- Using relevant emojis naturally throughout the text (📊 for data/charts, 💰 for revenue, 👥 for members, 🔄 for retention, 📈 for growth, 📉 for decline, ⚡ for quick wins, 🎯 for targets, ✨ for opportunities, 🌟 for highlights)
+- Embedding visual descriptions (e.g., "📊 Revenue is trending upward..." or "💰 Strong revenue growth driven by..." or "⚡ Quick win opportunity identified...")
+- Using clear visual markers to highlight key points and make insights scannable
+- Keeping technical concepts accessible with intuitive, visual language
+- Making numerical data come alive with contextual emojis
+
 {format_instructions}
 """,
             input_variables=["studio_id", "total_revenue", "avg_confidence", "num_months",
@@ -123,6 +131,14 @@ Provide strategic insights that help the studio owner understand:
 3. Potential challenges and how to mitigate them
 4. Why the confidence level is what it is
 
+PRESENTATION STYLE:
+Make your insights engaging and intuitive by:
+- Using relevant emojis naturally throughout the text (🎯 for targets/goals, 🚀 for actions/growth, 📊 for metrics/data, ⚠️ for challenges/warnings, ✅ for achievements/completions, 🔧 for levers/adjustments, 💡 for strategies/ideas, 📈 for improvements, ⚖️ for balance/trade-offs)
+- Embedding visual descriptions (e.g., "🎯 Target revenue goal..." or "🚀 Action plan to boost performance..." or "⚠️ Potential challenge to consider...")
+- Using clear visual markers to make action items and priorities scannable
+- Presenting optimization recommendations with visual cues that guide decision-making
+- Making strategic concepts accessible with intuitive, visual language
+
 {format_instructions}
 """,
             input_variables=["studio_id", "target_revenue", "achievable_revenue", "achievement_rate",
@@ -142,18 +158,39 @@ PARTIAL PREDICTION DATA:
 - Predicted Levers: {predicted_levers}
 - Overall Confidence: {confidence:.1%}
 
+TECHNICAL EXPLANATION (SHAP):
+Model Context (Revenue/Members/Retention predictions):
+{model_context}
+
+Lever-Specific Insights (How input levers influence output levers):
+{lever_insights}
+
+PRODUCT/SERVICE ANALYSIS (Targeted by Output Levers):
+{product_recommendations}
+
 NOTES:
 {notes}
 
-Explain what these predicted levers mean for the business and provide recommendations on:
-1. What the predicted values suggest about current operations
-2. Whether the predicted values are optimal or need adjustment
-3. How these levers interact and affect revenue
-4. Specific actions to optimize these levers
+Based on the SHAP analysis and targeted product correlations, explain:
+1. What the model predicts about the studio's trajectory (revenue, members, retention)
+2. How the input levers you provided influence the output levers being predicted
+3. Which input levers have the strongest impact on each output lever
+4. Which products/services to promote based on the specific output levers being optimized
+5. How product recommendations align with predicted lever targets
+6. Specific actions to optimize these lever relationships and product mix
+
+PRESENTATION STYLE:
+Make your insights engaging and intuitive by:
+- Using relevant emojis naturally throughout the text (⚙️ for input levers, 🎯 for output levers, 🔗 for relationships/connections, 💡 for insights/findings, 📊 for predictions/data, 🔄 for influence/impact, ⬆️ for increases, ⬇️ for decreases, 🌟 for key drivers, 🎨 for product/service mix)
+- Embedding visual descriptions (e.g., "⚙️ Input lever adjustments..." or "🔗 Strong connection between..." or "🎯 Output lever targeting...")
+- Using clear visual markers to show input→output relationships
+- Making SHAP explanations intuitive with visual language that shows cause and effect
+- Presenting lever interactions with visual cues that clarify dependencies
 
 {format_instructions}
 """,
-            input_variables=["studio_id", "input_levers", "predicted_levers", "confidence", "notes"],
+            input_variables=["studio_id", "input_levers", "predicted_levers", "confidence", 
+                           "model_context", "lever_insights", "product_recommendations", "notes"],
             partial_variables={"format_instructions": format_instructions}
         )
 
@@ -176,6 +213,14 @@ Provide insights to help decision-makers:
 2. Trade-offs between scenarios
 3. Risk assessment for each scenario
 4. Implementation considerations
+
+PRESENTATION STYLE:
+Make your insights engaging and intuitive by:
+- Using relevant emojis naturally throughout the text (⚖️ for trade-offs/comparisons, 🏆 for recommended/best options, ⚠️ for risks/concerns, 📊 for metrics/comparisons, ✅ for pros/advantages, ❌ for cons/disadvantages, 💼 for business decisions, 🎯 for goals/targets, 🌟 for standout features, 📈 for performance indicators)
+- Embedding visual descriptions (e.g., "🏆 Recommended scenario..." or "⚖️ Trade-off between..." or "⚠️ Risk consideration...")
+- Using clear visual markers to differentiate between scenarios
+- Making scenario differences immediately apparent with visual cues
+- Presenting decision-making insights with visual guides that support strategic choices
 
 {format_instructions}
 """,
@@ -324,7 +369,9 @@ Provide insights to help decision-makers:
         input_levers: Dict[str, float],
         predicted_levers: List[Dict],
         confidence: float,
-        notes: Optional[str] = None
+        notes: Optional[str] = None,
+        explanation: Optional[Dict] = None,
+        product_recommendations: Optional[Dict] = None
     ) -> Optional[AIInsights]:
         """
         Generate AI insights for partial predictions using LangChain LCEL
@@ -335,6 +382,8 @@ Provide insights to help decision-makers:
             predicted_levers: Predicted lever values
             confidence: Overall confidence score
             notes: Additional notes or warnings
+            explanation: SHAP explanation with model context and lever insights
+            product_recommendations: Targeted product recommendations based on output levers
 
         Returns:
             AIInsights object or None if generation fails
@@ -350,6 +399,15 @@ Provide insights to help decision-makers:
             # Format predicted levers
             pred_str = self._format_predicted_levers(predicted_levers)
 
+            # Format model context from SHAP explanation
+            model_context_str = self._format_model_context(explanation) if explanation else "No model context available"
+            
+            # Format lever insights from SHAP explanation
+            lever_insights_str = self._format_lever_insights(explanation) if explanation else "No lever insights available"
+
+            # Format product recommendations for targeted output levers
+            prod_str = self._format_product_recommendations(product_recommendations) if product_recommendations else "No product analysis available"
+
             # Create LCEL chain
             chain = self.partial_prompt | self.llm | self.parser
 
@@ -359,6 +417,9 @@ Provide insights to help decision-makers:
                 "input_levers": input_str,
                 "predicted_levers": pred_str,
                 "confidence": confidence,
+                "model_context": model_context_str,
+                "lever_insights": lever_insights_str,
+                "product_recommendations": prod_str,
                 "notes": notes or "No additional notes"
             })
 
@@ -558,5 +619,102 @@ Provide insights to help decision-makers:
         
         if not lines:
             return "No significant product patterns identified"
+        
+        return "\n".join(lines)
+
+    def _format_model_context(self, explanation: Dict) -> str:
+        """
+        Format model context (revenue, members, retention predictions) from SHAP explanation
+        
+        Args:
+            explanation: SHAP explanation dictionary with targets
+            
+        Returns:
+            Formatted string with model predictions and key drivers
+        """
+        if not explanation or 'targets' not in explanation:
+            return "No model context available"
+        
+        lines = []
+        targets = explanation.get('targets', {})
+        
+        # Format revenue predictions
+        revenue_targets = ['revenue_month_1', 'revenue_month_2', 'revenue_month_3']
+        lines.append("Revenue Predictions:")
+        for target in revenue_targets:
+            if target in targets:
+                target_exp = targets[target]
+                prediction = target_exp.get('prediction', 0)
+                month = target.split('_')[-1]
+                lines.append(f"  Month {month}: ${prediction:,.2f}")
+        
+        # Format member prediction
+        if 'member_count_month_3' in targets:
+            member_exp = targets['member_count_month_3']
+            prediction = member_exp.get('prediction', 0)
+            lines.append(f"\nMember Count (Month 3): {prediction:.0f}")
+        
+        # Format retention prediction
+        if 'retention_rate_month_3' in targets:
+            retention_exp = targets['retention_rate_month_3']
+            prediction = retention_exp.get('prediction', 0)
+            lines.append(f"Retention Rate (Month 3): {prediction:.1%}")
+        
+        # Add overall summary from explanation
+        if 'summary' in explanation:
+            summary = explanation['summary']
+            most_important = summary.get('most_important_features_overall', [])
+            if most_important:
+                lines.append("\nMost Important Features Overall:")
+                for feat in most_important[:5]:
+                    feature = feat.get('feature', 'Unknown')
+                    importance = feat.get('total_importance', 0)
+                    lines.append(f"  - {feature}: {importance:.2f}")
+        
+        return "\n".join(lines)
+
+    def _format_lever_insights(self, explanation: Dict) -> str:
+        """
+        Format lever-specific insights showing input→output lever relationships
+        
+        Args:
+            explanation: SHAP explanation dictionary with lever_insights
+            
+        Returns:
+            Formatted string with lever relationships
+        """
+        if not explanation or 'lever_insights' not in explanation:
+            return "No lever insights available"
+        
+        lever_insights = explanation.get('lever_insights', {})
+        
+        if not lever_insights:
+            return "No lever insights generated"
+        
+        lines = []
+        
+        for output_lever, insights in lever_insights.items():
+            lines.append(f"\n{output_lever.upper()}:")
+            
+            predicted_value = insights.get('predicted_value')
+            if predicted_value is not None:
+                lines.append(f"  Predicted Value: {predicted_value:.2f}")
+            
+            # Format key drivers
+            key_drivers = insights.get('key_drivers', [])
+            if key_drivers:
+                lines.append("  Key Influencing Input Levers:")
+                for driver in key_drivers:
+                    input_lever = driver.get('input_lever', 'Unknown')
+                    contribution = driver.get('contribution', 0)
+                    via_target = driver.get('via_target', 'Unknown')
+                    
+                    direction = "↑ increases" if contribution > 0 else "↓ decreases"
+                    lines.append(f"    - {input_lever} {direction} (contribution: {contribution:.2f} via {via_target})")
+            
+            # Add explanation text
+            explanation_text = insights.get('explanation', '')
+            if explanation_text:
+                lines.append(f"  Explanation: {explanation_text}")
         
         return "\n".join(lines)
