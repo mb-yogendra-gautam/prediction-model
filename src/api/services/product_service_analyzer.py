@@ -7,7 +7,7 @@ to provide data-driven recommendations on what to promote or demote.
 
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Any
 import logging
 
 logger = logging.getLogger(__name__)
@@ -70,9 +70,40 @@ class ProductServiceAnalyzer:
         self.product_lever_correlations = None
         self.product_revenue_correlations = None
         self.product_statistics = None
+        self.loaded_from_artifacts = False
         
         logger.info("ProductServiceAnalyzer initialized")
         self._compute_correlations()
+    
+    @classmethod
+    def from_artifacts(cls, artifacts: Dict[str, Any]) -> 'ProductServiceAnalyzer':
+        """
+        Initialize analyzer from pre-computed correlation artifacts
+        
+        Args:
+            artifacts: Dictionary containing pre-computed correlations:
+                - product_lever_correlations
+                - product_revenue_correlations
+                - product_statistics
+                - correlation_matrix (optional)
+        
+        Returns:
+            ProductServiceAnalyzer instance with pre-loaded correlations
+        """
+        # Create an instance without calling __init__
+        instance = cls.__new__(cls)
+        
+        # Set attributes directly from artifacts
+        instance.training_data = None  # Not needed when loading from artifacts
+        instance.product_lever_correlations = artifacts.get('product_lever_correlations', {})
+        instance.product_revenue_correlations = artifacts.get('product_revenue_correlations', {})
+        instance.product_statistics = artifacts.get('product_statistics', {})
+        instance.loaded_from_artifacts = True
+        
+        logger.info(f"ProductServiceAnalyzer initialized from artifacts (fast path)")
+        logger.info(f"Loaded {len(instance.product_lever_correlations)} products")
+        
+        return instance
     
     def _compute_correlations(self):
         """Compute correlation matrices"""
