@@ -133,7 +133,7 @@
     }
   },
   "best_model": "ridge",
-  "timestamp": "2025-11-07T22:06:35.722133",
+  "timestamp": "2025-11-08T00:57:22.342590",
   "phase": "Phase 3 - Multi-Studio Data",
   "training_samples": 732,
   "test_samples": 48,

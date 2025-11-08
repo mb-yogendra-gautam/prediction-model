@@ -189,7 +189,8 @@ class MetricsCalculator:
         predictions: List[Dict],
         confidence_scores: List[float],
         lever_values: Dict[str, float],
-        feature_importance: Optional[Dict[str, float]] = None
+        feature_importance: Optional[Dict[str, float]] = None,
+        mean_revenue: Optional[float] = None
     ) -> Dict[str, Any]:
         """
         Calculate metrics for forward predictions
@@ -199,6 +200,7 @@ class MetricsCalculator:
             confidence_scores: Confidence scores for each prediction
             lever_values: Input lever values
             feature_importance: Optional feature importance scores
+            mean_revenue: Optional mean revenue for calculating percentage metrics
 
         Returns:
             Dictionary with calculated metrics
@@ -235,9 +237,19 @@ class MetricsCalculator:
             # Determine confidence level
             confidence_level = self._get_confidence_level(avg_confidence, avg_horizon)
 
+            # Calculate percentage metrics if mean_revenue is provided
+            if mean_revenue and mean_revenue > 0:
+                rmse_pct = (rmse / mean_revenue) * 100
+                mae_pct = (mae / mean_revenue) * 100
+            else:
+                rmse_pct = None
+                mae_pct = None
+
             return {
                 'rmse': round(rmse, 2),
                 'mae': round(mae, 2),
+                'rmse_pct': round(rmse_pct, 2) if rmse_pct is not None else None,
+                'mae_pct': round(mae_pct, 2) if mae_pct is not None else None,
                 'r2_score': round(r2_score, 3),
                 'mape': round(mape, 4),
                 'accuracy_within_5pct': round(accuracy_5pct, 3),
@@ -257,7 +269,8 @@ class MetricsCalculator:
         achievable_revenue: float,
         achievement_rate: float,
         confidence_score: float,
-        lever_changes: List[Dict]
+        lever_changes: List[Dict],
+        mean_revenue: Optional[float] = None
     ) -> Dict[str, Any]:
         """
         Calculate metrics for inverse predictions (optimization)
@@ -268,6 +281,7 @@ class MetricsCalculator:
             achievement_rate: How close we can get to target
             confidence_score: Optimization confidence
             lever_changes: List of lever change recommendations
+            mean_revenue: Optional mean revenue for calculating percentage metrics
 
         Returns:
             Dictionary with calculated metrics
@@ -303,9 +317,19 @@ class MetricsCalculator:
             else:
                 confidence_level = "Low"
 
+            # Calculate percentage metrics if mean_revenue is provided
+            if mean_revenue and mean_revenue > 0:
+                rmse_pct = (rmse / mean_revenue) * 100
+                mae_pct = (mae / mean_revenue) * 100
+            else:
+                rmse_pct = None
+                mae_pct = None
+
             return {
                 'rmse': round(rmse, 2),
                 'mae': round(mae, 2),
+                'rmse_pct': round(rmse_pct, 2) if rmse_pct is not None else None,
+                'mae_pct': round(mae_pct, 2) if mae_pct is not None else None,
                 'r2_score': round(r2_score, 3),
                 'mape': round(mape, 4),
                 'accuracy_within_5pct': round(accuracy_5pct, 3),
@@ -323,7 +347,8 @@ class MetricsCalculator:
         self,
         input_levers: Dict[str, float],
         predicted_levers: List[Dict],
-        overall_confidence: float
+        overall_confidence: float,
+        mean_revenue: Optional[float] = None
     ) -> Dict[str, Any]:
         """
         Calculate metrics for partial lever predictions
@@ -332,6 +357,7 @@ class MetricsCalculator:
             input_levers: Known input lever values
             predicted_levers: Predicted lever values
             overall_confidence: Overall prediction confidence
+            mean_revenue: Optional mean revenue for calculating percentage metrics
 
         Returns:
             Dictionary with calculated metrics
@@ -360,9 +386,19 @@ class MetricsCalculator:
             # Confidence level
             confidence_level = self._get_confidence_level(overall_confidence, horizon=1.5)
 
+            # Calculate percentage metrics if mean_revenue is provided
+            if mean_revenue and mean_revenue > 0:
+                rmse_pct = (rmse / mean_revenue) * 100
+                mae_pct = (mae / mean_revenue) * 100
+            else:
+                rmse_pct = None
+                mae_pct = None
+
             return {
                 'rmse': round(rmse, 2),
                 'mae': round(mae, 2),
+                'rmse_pct': round(rmse_pct, 2) if rmse_pct is not None else None,
+                'mae_pct': round(mae_pct, 2) if mae_pct is not None else None,
                 'r2_score': round(r2_score, 3),
                 'mape': round(mape, 4),
                 'accuracy_within_5pct': round(accuracy_5pct, 3),
@@ -446,6 +482,8 @@ class MetricsCalculator:
         return {
             'rmse': round(self.BASELINE_METRICS['rmse'], 2),
             'mae': round(self.BASELINE_METRICS['mae'], 2),
+            'rmse_pct': None,
+            'mae_pct': None,
             'r2_score': round(self.BASELINE_METRICS['r2_score'], 3),
             'mape': round(self.BASELINE_METRICS['mape'], 4),
             'accuracy_within_5pct': round(self.BASELINE_METRICS['accuracy_within_5pct'], 3),

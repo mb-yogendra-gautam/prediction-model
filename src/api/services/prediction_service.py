@@ -4,7 +4,7 @@ Prediction Service for Forward, Inverse, and Partial Predictions
 
 import numpy as np
 import uuid
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from datetime import datetime
 from scipy.optimize import minimize
 from sklearn.linear_model import Ridge
@@ -83,6 +83,26 @@ class PredictionService:
         self.metrics_calculator = MetricsCalculator(metadata=metadata)
 
         logger.info(f"Prediction service initialized with model version {self.version}")
+
+    def _get_mean_revenue(self, studio_id: str) -> Optional[float]:
+        """
+        Get mean revenue from historical data for a studio
+        
+        Args:
+            studio_id: Studio identifier
+            
+        Returns:
+            Mean revenue value or None if not available
+        """
+        try:
+            history = self.historical_data_service.get_studio_history(studio_id)
+            if history is not None and len(history) > 0 and 'total_revenue' in history.columns:
+                mean_rev = float(history['total_revenue'].mean())
+                logger.debug(f"Mean revenue for studio {studio_id}: ${mean_rev:.2f}")
+                return mean_rev
+        except Exception as e:
+            logger.warning(f"Could not calculate mean revenue for studio {studio_id}: {e}")
+        return None
 
     def predict_forward(self, request_data: Dict, include_ai_insights: bool = False) -> Dict:
         """
@@ -241,11 +261,13 @@ class PredictionService:
         # Calculate prediction metrics
         try:
             confidence_scores = [p['confidence_score'] for p in monthly_predictions]
+            mean_revenue = self._get_mean_revenue(studio_id)
             metrics = self.metrics_calculator.calculate_forward_metrics(
                 predictions=monthly_predictions,
                 confidence_scores=confidence_scores,
                 lever_values=levers,
-                feature_importance=explanation.get('feature_importance') if explanation else None
+                feature_importance=explanation.get('feature_importance') if explanation else None,
+                mean_revenue=mean_revenue
             )
             response['prediction_metrics'] = metrics
             logger.debug("Calculated prediction metrics")
@@ -421,12 +443,14 @@ class PredictionService:
 
         # Calculate prediction metrics
         try:
+            mean_revenue = self._get_mean_revenue(studio_id)
             metrics = self.metrics_calculator.calculate_inverse_metrics(
                 target_revenue=target_revenue,
                 achievable_revenue=achievable_revenue,
                 achievement_rate=response['achievement_rate'],
                 confidence_score=response['confidence_score'],
-                lever_changes=lever_changes
+                lever_changes=lever_changes,
+                mean_revenue=mean_revenue
             )
             response['prediction_metrics'] = metrics
             logger.debug("Calculated prediction metrics")
@@ -653,10 +677,12 @@ class PredictionService:
 
         # Calculate prediction metrics
         try:
+            mean_revenue = self._get_mean_revenue(studio_id)
             metrics = self.metrics_calculator.calculate_partial_metrics(
                 input_levers=input_levers,
                 predicted_levers=predicted_levers,
-                overall_confidence=overall_confidence
+                overall_confidence=overall_confidence,
+                mean_revenue=mean_revenue
             )
             response['prediction_metrics'] = metrics
             logger.debug("Calculated prediction metrics")

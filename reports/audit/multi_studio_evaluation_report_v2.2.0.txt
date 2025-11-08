@@ -2,7 +2,7 @@
 MULTI-STUDIO MODEL EVALUATION REPORT
 ================================================================================
 
-Generated: 2025-11-07 17:41:48
+Generated: 2025-11-08 00:57:45
 
 Model Version: v2.2.0
 Data Type: Multi-Studio
@@ -13,47 +13,47 @@ Studios (Test): 12
 Best Model: ridge
 
 Cross-Validation Results:
-  R² = 0.9988 (+/- 0.0002)
-  RMSE = 436.29 (+/- 43.59)
+  R² = 0.9893 (+/- 0.0027)
+  RMSE = 845.52 (+/- 80.99)
 
 Test Set Results:
-  Overall R² = 0.9990
-  Overall RMSE = 535.10
-  Overall MAE = 309.21
+  Overall R² = 0.9933
+  Overall RMSE = 893.38
+  Overall MAE = 536.35
 
 Per-Target Performance:
   Revenue Month 1:
-    R² = 0.9966
-    RMSE = 680.29
-    MAE = 504.65
-    MAPE = 1.86%
+    R² = 0.9792
+    RMSE = 1111.93
+    MAE = 831.95
+    MAPE = 4.77%
   Revenue Month 2:
-    R² = 0.9961
-    RMSE = 742.24
-    MAE = 537.12
-    MAPE = 1.88%
+    R² = 0.9811
+    RMSE = 1037.60
+    MAE = 798.69
+    MAPE = 4.90%
   Revenue Month 3:
-    R² = 0.9972
-    RMSE = 646.46
-    MAE = 500.26
-    MAPE = 1.82%
+    R² = 0.9729
+    RMSE = 1295.21
+    MAE = 1042.69
+    MAPE = 5.98%
   Members Month 3:
-    R² = 0.9923
-    RMSE = 5.24
-    MAE = 3.99
-    MAPE = 2.09%
+    R² = 0.9684
+    RMSE = 10.41
+    MAE = 8.41
+    MAPE = 4.72%
   Retention Month 3:
-    R² = 0.9579
-    RMSE = 0.01
-    MAE = 0.01
-    MAPE = 0.95%
+    R² = 0.4380
+    RMSE = 0.03
+    MAE = 0.03
+    MAPE = 3.90%
 
 ================================================================================
 PRODUCTION READINESS ASSESSMENT
 ================================================================================
 
 Status: EXCELLENT - PRODUCTION READY
-Average Test R²: 0.9880
+Average Test R²: 0.8679
 
 Recommended Action:
   Deploy to production with standard monitoring

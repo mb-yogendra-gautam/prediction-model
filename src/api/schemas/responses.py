@@ -33,6 +33,8 @@ class PredictionMetrics(BaseModel):
     # Standard ML Metrics
     rmse: float = Field(..., description="Root Mean Squared Error estimate")
     mae: float = Field(..., description="Mean Absolute Error estimate")
+    rmse_pct: Optional[float] = Field(None, description="RMSE as percentage of mean revenue")
+    mae_pct: Optional[float] = Field(None, description="MAE as percentage of mean revenue")
     r2_score: float = Field(..., ge=-1.0, le=1.0, description="R-squared score estimate")
     mape: float = Field(..., description="Mean Absolute Percentage Error estimate")
 
