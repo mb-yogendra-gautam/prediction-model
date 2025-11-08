@@ -13,7 +13,7 @@ class ProductRecommendation(BaseModel):
     action: str = Field(..., description="Action to take: 'promote' or 'demote'")
     category: str = Field(..., description="Product category (Memberships, Class Packages, Retail, Add-On Services)")
     correlation: float = Field(..., description="Correlation with target metric (-1 to 1)")
-    avg_revenue: float = Field(..., description="Average revenue from this product")
+    avg_revenue: Optional[float] = Field(None, description="Average revenue from this product")
     impact_score: Optional[float] = Field(None, description="Combined impact score (correlation * revenue)")
     reasoning: str = Field(..., description="Why this recommendation is being made")
 

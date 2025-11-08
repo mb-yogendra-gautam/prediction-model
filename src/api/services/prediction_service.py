@@ -627,22 +627,62 @@ class PredictionService:
         # Calculate overall confidence
         overall_confidence = np.mean([pl['confidence_score'] for pl in predicted_levers]) if predicted_levers else 0.0
 
-        # Generate explanation for the complete lever set
+        # Generate explanation - ALWAYS generate for all partial predictions
         explanation = None
-        if self.explainability_service and 'total_revenue' in output_lever_names:
+        if self.explainability_service:
             try:
                 # Fill missing levers to get complete prediction
                 complete_levers = self._fill_missing_levers(input_levers, historical_data)
                 features = self.feature_service.engineer_features_from_levers(complete_levers, historical_data)
                 features_scaled = self.scaler.transform(features)
 
+                # Generate comprehensive SHAP explanation for all model outputs
                 explanation = self.explainability_service.explain_prediction(
                     features_scaled=features_scaled,
                     levers=complete_levers
                 )
-                logger.debug("Generated explanations for partial lever prediction")
+                
+                # Add lever-specific insights showing how input levers influence outputs
+                explanation['lever_insights'] = self._generate_lever_insights(
+                    explanation=explanation,
+                    input_levers=input_levers,
+                    output_lever_names=output_lever_names,
+                    predicted_levers=predicted_levers
+                )
+                
+                logger.debug("Generated SHAP explanations for partial lever prediction")
             except Exception as e:
                 logger.warning(f"Failed to generate explanations: {e}")
+
+        # Generate product recommendations based on output levers being predicted
+        product_recommendations = None
+        if self.product_service_analyzer:
+            try:
+                # Analyze recommendations for each output lever as target metric
+                all_recommendations = {}
+                
+                for output_lever in output_lever_names:
+                    # Map output lever to appropriate target metric for analyzer
+                    target_metric = self._map_output_lever_to_target_metric(output_lever)
+                    
+                    if target_metric:
+                        lever_recs = self.product_service_analyzer.get_product_recommendations(
+                            current_levers=complete_levers,
+                            target_metric=target_metric
+                        )
+                        all_recommendations[output_lever] = {
+                            'target_metric': target_metric,
+                            'promote': lever_recs.get('promote', []),
+                            'demote': lever_recs.get('demote', []),
+                            'lever_analysis': lever_recs.get('lever_analysis', {})
+                        }
+                
+                # Consolidate recommendations across all output levers
+                product_recommendations = self._consolidate_product_recommendations(all_recommendations)
+                
+                logger.debug(f"Generated product recommendations for partial: {len(product_recommendations.get('promote', []))} to promote, {len(product_recommendations.get('demote', []))} to demote across {len(output_lever_names)} output levers")
+            except Exception as e:
+                logger.warning(f"Error getting product recommendations: {str(e)}")
 
         response = {
             'prediction_id': str(uuid.uuid4()),
@@ -659,6 +699,10 @@ class PredictionService:
         if explanation:
             response['explanation'] = explanation
 
+        # Add product recommendations if available
+        if product_recommendations:
+            response['product_recommendations'] = product_recommendations
+
         # Generate AI insights if requested
         if include_ai_insights and self.ai_insights_service:
             try:
@@ -667,7 +711,9 @@ class PredictionService:
                     input_levers=input_levers,
                     predicted_levers=predicted_levers,
                     confidence=overall_confidence,
-                    notes=response.get('notes')
+                    notes=response.get('notes'),
+                    explanation=explanation,  # Pass SHAP explanation for enhanced insights
+                    product_recommendations=product_recommendations  # Pass product recommendations
                 )
                 if ai_insights:
                     response['ai_insights'] = ai_insights
@@ -1383,6 +1429,295 @@ class PredictionService:
             })
         
         return monthly_predictions
+
+    def _generate_lever_insights(
+        self,
+        explanation: Dict,
+        input_levers: Dict[str, float],
+        output_lever_names: List[str],
+        predicted_levers: List[Dict]
+    ) -> Dict[str, Any]:
+        """
+        Generate lever-specific insights from SHAP explanations
+        
+        Args:
+            explanation: SHAP explanation with all targets
+            input_levers: User-provided input levers
+            output_lever_names: Levers being predicted
+            predicted_levers: Predicted lever results
+            
+        Returns:
+            Dictionary mapping output levers to their driving input levers
+        """
+        lever_insights = {}
+        
+        # Get feature-to-lever mapping from explainability service
+        feature_lever_map = self.explainability_service.explain_feature_to_lever_mapping()
+        
+        # For each output lever, identify key drivers
+        for output_lever in output_lever_names:
+            # Map output lever to relevant model targets
+            relevant_targets = self._map_lever_to_targets(output_lever)
+            
+            # Aggregate SHAP contributions for this output lever
+            drivers = []
+            for target_name in relevant_targets:
+                if target_name in explanation.get('targets', {}):
+                    target_exp = explanation['targets'][target_name]
+                    
+                    # Extract top contributions related to input levers
+                    for contrib in target_exp.get('top_5_drivers', []):
+                        feature = contrib['feature']
+                        
+                        # Check if feature relates to an input lever
+                        if self._feature_relates_to_input_levers(feature, input_levers):
+                            drivers.append({
+                                'input_lever': self._extract_lever_from_feature(feature),
+                                'feature': feature,
+                                'contribution': contrib['shap_value'],
+                                'via_target': target_name
+                            })
+            
+            # Remove duplicates and keep top drivers
+            seen = set()
+            unique_drivers = []
+            for driver in drivers:
+                key = (driver['input_lever'], driver['feature'])
+                if key not in seen:
+                    seen.add(key)
+                    unique_drivers.append(driver)
+            
+            # Summarize drivers
+            lever_insights[output_lever] = {
+                'predicted_value': next(
+                    (pl['predicted_value'] for pl in predicted_levers if pl['lever_name'] == output_lever),
+                    None
+                ),
+                'key_drivers': unique_drivers[:5],  # Top 5 unique drivers
+                'explanation': self._generate_lever_explanation_text(output_lever, unique_drivers[:5])
+            }
+        
+        return lever_insights
+
+    def _map_lever_to_targets(self, output_lever: str) -> List[str]:
+        """
+        Map an output lever name to relevant model target names
+        
+        Args:
+            output_lever: Name of the output lever being predicted
+            
+        Returns:
+            List of model target names that are relevant for this lever
+        """
+        # Map levers to model outputs
+        lever_target_map = {
+            'total_revenue': ['revenue_month_1', 'revenue_month_2', 'revenue_month_3'],
+            'total_members': ['member_count_month_3', 'revenue_month_1', 'revenue_month_2', 'revenue_month_3'],
+            'retention_rate': ['retention_rate_month_3', 'member_count_month_3'],
+            'avg_ticket_price': ['revenue_month_1', 'revenue_month_2', 'revenue_month_3'],
+            'class_attendance_rate': ['revenue_month_1', 'revenue_month_2', 'revenue_month_3'],
+            'new_members': ['member_count_month_3', 'revenue_month_1'],
+            'staff_utilization_rate': ['revenue_month_1', 'revenue_month_2', 'revenue_month_3'],
+            'upsell_rate': ['revenue_month_1', 'revenue_month_2', 'revenue_month_3'],
+            'total_classes_held': ['revenue_month_1', 'revenue_month_2', 'revenue_month_3']
+        }
+        
+        # Return relevant targets, default to all revenue targets if not found
+        return lever_target_map.get(output_lever, ['revenue_month_1', 'revenue_month_2', 'revenue_month_3'])
+
+    def _feature_relates_to_input_levers(self, feature: str, input_levers: Dict[str, float]) -> bool:
+        """
+        Check if a feature is derived from or related to input levers
+        
+        Args:
+            feature: Feature name from SHAP analysis
+            input_levers: Dictionary of input lever names
+            
+        Returns:
+            True if feature relates to any input lever
+        """
+        # Direct match: feature name is an input lever
+        if feature in input_levers:
+            return True
+        
+        # Check if feature contains any input lever name
+        for lever_name in input_levers.keys():
+            # Handle interaction features like 'retention_x_ticket'
+            if lever_name in feature:
+                return True
+            
+            # Handle abbreviated names in features
+            lever_abbrev = lever_name.replace('_', '').lower()
+            feature_clean = feature.replace('_', '').lower()
+            if lever_abbrev in feature_clean:
+                return True
+        
+        return False
+
+    def _extract_lever_from_feature(self, feature: str) -> str:
+        """
+        Extract the base lever name from a feature name
+        
+        Args:
+            feature: Feature name (may be lever name or derived feature)
+            
+        Returns:
+            Base lever name
+        """
+        # List of known lever names
+        known_levers = [
+            'retention_rate', 'avg_ticket_price', 'class_attendance_rate',
+            'new_members', 'staff_utilization_rate', 'upsell_rate',
+            'total_classes_held', 'total_members'
+        ]
+        
+        # Check if feature is a known lever
+        if feature in known_levers:
+            return feature
+        
+        # Check if feature contains a known lever
+        for lever in known_levers:
+            if lever in feature:
+                return lever
+        
+        # Check interaction features (e.g., 'retention_x_ticket' -> 'retention_rate')
+        for lever in known_levers:
+            lever_parts = lever.split('_')
+            if any(part in feature for part in lever_parts if len(part) > 3):
+                return lever
+        
+        # Default: return the feature name itself
+        return feature
+
+    def _generate_lever_explanation_text(self, output_lever: str, drivers: List[Dict]) -> str:
+        """
+        Generate human-readable explanation of how input levers influence output lever
+        
+        Args:
+            output_lever: The output lever being explained
+            drivers: List of driver dictionaries with input_lever, feature, contribution
+            
+        Returns:
+            Human-readable explanation text
+        """
+        if not drivers:
+            return f"No significant input lever influences detected for {output_lever}"
+        
+        # Create explanation based on top drivers
+        explanations = []
+        for driver in drivers[:3]:  # Top 3 drivers
+            input_lever = driver.get('input_lever', 'unknown')
+            contribution = driver.get('contribution', 0)
+            
+            # Determine direction and magnitude
+            direction = "increases" if contribution > 0 else "decreases"
+            magnitude = abs(contribution)
+            
+            if magnitude > 1000:
+                impact_desc = "strongly"
+            elif magnitude > 100:
+                impact_desc = "moderately"
+            else:
+                impact_desc = "slightly"
+            
+            explanations.append(f"{input_lever} {impact_desc} {direction}")
+        
+        return f"{output_lever} prediction: " + ", ".join(explanations)
+
+    def _map_output_lever_to_target_metric(self, output_lever: str) -> Optional[str]:
+        """
+        Map an output lever to the appropriate target metric for product analyzer
+        
+        Args:
+            output_lever: Name of the output lever being predicted
+            
+        Returns:
+            Target metric name for product_service_analyzer, or None if not applicable
+        """
+        # Map output levers to analyzer-compatible metrics
+        lever_to_metric_map = {
+            'total_revenue': 'total_revenue',
+            'retention_rate': 'retention_rate',
+            'avg_ticket_price': 'avg_ticket_price',
+            'class_attendance_rate': 'class_attendance_rate',
+            'new_members': 'new_members',
+            'upsell_rate': 'upsell_rate',
+            'total_members': 'total_members',
+            'staff_utilization_rate': 'total_revenue',  # Default to revenue
+            'total_classes_held': 'total_revenue'  # Default to revenue
+        }
+        
+        return lever_to_metric_map.get(output_lever)
+
+    def _consolidate_product_recommendations(self, all_recommendations: Dict) -> Dict:
+        """
+        Consolidate product recommendations from multiple output levers
+        
+        Args:
+            all_recommendations: Dict mapping output_lever -> recommendations
+            
+        Returns:
+            Consolidated recommendations with promote/demote lists and per-lever details
+        """
+        if not all_recommendations:
+            return {'promote': [], 'demote': [], 'by_output_lever': {}}
+        
+        # Track products across all recommendations
+        product_scores = {}  # product_key -> {'promote_count': int, 'total_correlation': float, 'levers': []}
+        
+        # Aggregate across all output levers
+        for output_lever, recs in all_recommendations.items():
+            for product in recs.get('promote', []):
+                key = product['product_key']
+                if key not in product_scores:
+                    product_scores[key] = {
+                        'product': product['product'],
+                        'product_key': key,
+                        'category': product['category'],
+                        'promote_count': 0,
+                        'total_correlation': 0,
+                        'avg_revenue': product.get('avg_revenue', 0),
+                        'relevant_for_levers': []
+                    }
+                product_scores[key]['promote_count'] += 1
+                product_scores[key]['total_correlation'] += product['correlation']
+                product_scores[key]['relevant_for_levers'].append({
+                    'lever': output_lever,
+                    'correlation': product['correlation'],
+                    'reasoning': product.get('reasoning', '')
+                })
+        
+        # Sort by number of levers it's relevant for, then by average correlation
+        consolidated_promote = sorted(
+            product_scores.values(),
+            key=lambda x: (x['promote_count'], x['total_correlation']),
+            reverse=True
+        )[:5]  # Top 5 overall
+        
+        # Add aggregated reasoning
+        for product in consolidated_promote:
+            levers_str = ', '.join([item['lever'] for item in product['relevant_for_levers']])
+            avg_corr = product['total_correlation'] / product['promote_count']
+            product['consolidated_reasoning'] = (
+                f"Relevant for {product['promote_count']} predicted lever(s): {levers_str}. "
+                f"Average correlation: {avg_corr:.2f}"
+            )
+        
+        # Get demote products (products that appear in demote for any lever)
+        demote_products = {}
+        for output_lever, recs in all_recommendations.items():
+            for product in recs.get('demote', []):
+                key = product['product_key']
+                if key not in demote_products:
+                    demote_products[key] = product
+        
+        consolidated_demote = list(demote_products.values())[:3]
+        
+        return {
+            'promote': consolidated_promote,
+            'demote': consolidated_demote,
+            'by_output_lever': all_recommendations  # Keep detailed breakdown
+        }
 
     def _calculate_priority(self, lever_name: str, change_pct: float) -> int:
         """Calculate priority for lever change (1=highest, 10=lowest)"""
