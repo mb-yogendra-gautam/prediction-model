@@ -85,6 +85,14 @@ recommendations and explain how they align with the studio's current performance
 
 Provide insights in clear, business-friendly language that a studio owner can understand and act upon.
 
+PRESENTATION STYLE:
+Make your insights engaging and intuitive by:
+- Using relevant emojis naturally throughout the text (📊 for data/charts, 💰 for revenue, 👥 for members, 🔄 for retention, 📈 for growth, 📉 for decline, ⚡ for quick wins, 🎯 for targets, ✨ for opportunities, 🌟 for highlights)
+- Embedding visual descriptions (e.g., "📊 Revenue is trending upward..." or "💰 Strong revenue growth driven by..." or "⚡ Quick win opportunity identified...")
+- Using clear visual markers to highlight key points and make insights scannable
+- Keeping technical concepts accessible with intuitive, visual language
+- Making numerical data come alive with contextual emojis
+
 {format_instructions}
 """,
             input_variables=["studio_id", "total_revenue", "avg_confidence", "num_months",
@@ -122,6 +130,14 @@ Provide strategic insights that help the studio owner understand:
 2. Which actions to prioritize and why
 3. Potential challenges and how to mitigate them
 4. Why the confidence level is what it is
+
+PRESENTATION STYLE:
+Make your insights engaging and intuitive by:
+- Using relevant emojis naturally throughout the text (🎯 for targets/goals, 🚀 for actions/growth, 📊 for metrics/data, ⚠️ for challenges/warnings, ✅ for achievements/completions, 🔧 for levers/adjustments, 💡 for strategies/ideas, 📈 for improvements, ⚖️ for balance/trade-offs)
+- Embedding visual descriptions (e.g., "🎯 Target revenue goal..." or "🚀 Action plan to boost performance..." or "⚠️ Potential challenge to consider...")
+- Using clear visual markers to make action items and priorities scannable
+- Presenting optimization recommendations with visual cues that guide decision-making
+- Making strategic concepts accessible with intuitive, visual language
 
 {format_instructions}
 """,
@@ -163,6 +179,14 @@ Based on the SHAP analysis and targeted product correlations, explain:
 5. How product recommendations align with predicted lever targets
 6. Specific actions to optimize these lever relationships and product mix
 
+PRESENTATION STYLE:
+Make your insights engaging and intuitive by:
+- Using relevant emojis naturally throughout the text (⚙️ for input levers, 🎯 for output levers, 🔗 for relationships/connections, 💡 for insights/findings, 📊 for predictions/data, 🔄 for influence/impact, ⬆️ for increases, ⬇️ for decreases, 🌟 for key drivers, 🎨 for product/service mix)
+- Embedding visual descriptions (e.g., "⚙️ Input lever adjustments..." or "🔗 Strong connection between..." or "🎯 Output lever targeting...")
+- Using clear visual markers to show input→output relationships
+- Making SHAP explanations intuitive with visual language that shows cause and effect
+- Presenting lever interactions with visual cues that clarify dependencies
+
 {format_instructions}
 """,
             input_variables=["studio_id", "input_levers", "predicted_levers", "confidence", 
@@ -189,6 +213,14 @@ Provide insights to help decision-makers:
 2. Trade-offs between scenarios
 3. Risk assessment for each scenario
 4. Implementation considerations
+
+PRESENTATION STYLE:
+Make your insights engaging and intuitive by:
+- Using relevant emojis naturally throughout the text (⚖️ for trade-offs/comparisons, 🏆 for recommended/best options, ⚠️ for risks/concerns, 📊 for metrics/comparisons, ✅ for pros/advantages, ❌ for cons/disadvantages, 💼 for business decisions, 🎯 for goals/targets, 🌟 for standout features, 📈 for performance indicators)
+- Embedding visual descriptions (e.g., "🏆 Recommended scenario..." or "⚖️ Trade-off between..." or "⚠️ Risk consideration...")
+- Using clear visual markers to differentiate between scenarios
+- Making scenario differences immediately apparent with visual cues
+- Presenting decision-making insights with visual guides that support strategic choices
 
 {format_instructions}
 """,
