@@ -76,14 +76,16 @@ TECHNICAL EXPLANATION (SHAP values):
 QUICK WIN RECOMMENDATIONS:
 {quick_wins}
 
-PRODUCT/SERVICE ANALYSIS:
+PRODUCT/SERVICE ANALYSIS DATA:
 {product_recommendations}
 
-Based on historical correlation analysis with revenue and key performance levers (retention, attendance, pricing), 
-provide specific recommendations on which products/services to promote or demote. Include these in your 
-recommendations and explain how they align with the studio's current performance and predicted trajectory.
+IMPORTANT: Based on the product correlation data above, create engaging, natural language recommendations with emojis.
+DO NOT return product recommendations in JSON format. Instead, weave them into your narrative recommendations section 
+with clear, actionable advice. Use emojis like 🎯 for promotions, 💎 for premium offerings, 📦 for packages, 
+🛍️ for retail, 💪 for services, ⚠️ for items to review.
 
-Provide insights in clear, business-friendly language that a studio owner can understand and act upon.
+Transform the correlation data into compelling, human-readable insights that a studio owner can immediately understand 
+and act upon. Focus on WHY each product should be promoted or reconsidered based on its performance metrics.
 
 PRESENTATION STYLE:
 Make your insights engaging and intuitive by:
@@ -165,17 +167,22 @@ Model Context (Revenue/Members/Retention predictions):
 Lever-Specific Insights (How input levers influence output levers):
 {lever_insights}
 
-PRODUCT/SERVICE ANALYSIS (Targeted by Output Levers):
+PRODUCT/SERVICE ANALYSIS DATA (Targeted by Output Levers):
 {product_recommendations}
 
 NOTES:
 {notes}
 
+IMPORTANT: Transform the product analysis data above into engaging, natural language recommendations with emojis.
+DO NOT return product recommendations in JSON format. Instead, integrate them naturally into your recommendations 
+section with clear, actionable advice. Use emojis like 🎯 for promotions, 💎 for premium offerings, 📦 for packages, 
+🛍️ for retail, 💪 for services, ⚠️ for items to review.
+
 Based on the SHAP analysis and targeted product correlations, explain:
 1. What the model predicts about the studio's trajectory (revenue, members, retention)
 2. How the input levers you provided influence the output levers being predicted
 3. Which input levers have the strongest impact on each output lever
-4. Which products/services to promote based on the specific output levers being optimized
+4. Which products/services to promote (with emojis and natural language) based on the specific output levers being optimized
 5. How product recommendations align with predicted lever targets
 6. Specific actions to optimize these lever relationships and product mix
 
@@ -588,7 +595,10 @@ Make your insights engaging and intuitive by:
         return "\n".join(lines)
     
     def _format_product_recommendations(self, product_recs: Dict) -> str:
-        """Format product/service recommendations into readable text"""
+        """
+        Format product/service recommendations into natural language for AI to summarize with emojis.
+        Provides data summary that AI will transform into engaging narrative.
+        """
         if not product_recs:
             return "No product recommendations available"
         
@@ -597,29 +607,44 @@ Make your insights engaging and intuitive by:
         # Products to promote
         promote = product_recs.get('promote', [])
         if promote:
-            lines.append("Top Products to PROMOTE (strong correlation with revenue/levers):")
+            lines.append("HIGH-PERFORMING PRODUCTS (Strong revenue correlation - recommend promoting):")
             for i, prod in enumerate(promote[:5], 1):
                 product = prod.get('product', 'Unknown')
+                category = prod.get('category', 'Unknown')
                 correlation = prod.get('correlation', 0)
                 avg_revenue = prod.get('avg_revenue', 0)
-                reasoning = prod.get('reasoning', 'N/A')
-                lines.append(f"  {i}. {product} (correlation: {correlation:.2f}, avg revenue: ${avg_revenue:,.2f})")
-                lines.append(f"     Reasoning: {reasoning}")
+                impact_score = prod.get('impact_score', 0)
+                action_items = prod.get('action_items', [])
+                
+                # Create summary for this product
+                lines.append(f"\n{product} ({category}):")
+                lines.append(f"  - Correlation strength: {correlation:.1%} with key metrics")
+                lines.append(f"  - Average revenue: ${avg_revenue:,.0f}/month")
+                lines.append(f"  - Impact score: {impact_score:.1f}/100")
+                
+                if action_items:
+                    lines.append(f"  - Suggested actions:")
+                    for action in action_items[:3]:
+                        lines.append(f"    • {action}")
         
         # Products to demote/review
         demote = product_recs.get('demote', [])
         if demote:
-            lines.append("\nProducts to REVIEW/DEMOTE (weak correlation):")
+            lines.append("\n\nUNDERPERFORMING PRODUCTS (Weak correlation - consider reviewing):")
             for i, prod in enumerate(demote[:3], 1):
                 product = prod.get('product', 'Unknown')
+                category = prod.get('category', 'Unknown')
                 correlation = prod.get('correlation', 0)
                 reasoning = prod.get('reasoning', 'N/A')
-                lines.append(f"  {i}. {product} (correlation: {correlation:.2f})")
-                lines.append(f"     Reasoning: {reasoning}")
+                
+                lines.append(f"\n{product} ({category}):")
+                lines.append(f"  - Correlation: {correlation:.1%}")
+                lines.append(f"  - Analysis: {reasoning}")
         
         if not lines:
-            return "No significant product patterns identified"
+            return "No significant product performance patterns identified in the data"
         
+        lines.append("\n\nNOTE: Transform this data into engaging, actionable recommendations with emojis. Don't list as JSON.")
         return "\n".join(lines)
 
     def _format_model_context(self, explanation: Dict) -> str:
