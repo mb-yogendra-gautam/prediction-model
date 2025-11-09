@@ -37,7 +37,8 @@ class SlackService:
         
         # In-memory channel name to ID mapping
         self.channel_mappings: Dict[str, str] = {
-            "#new-channel": "C09R6GD20T1"
+            "#new-channel": "C09R6GD20T1",
+            "#hackathon2025-mb-parallax": "C09Q7BYBD7D" 
         }
         
         logger.info(f"SlackService initialized with Slack SDK and {len(self.channel_mappings)} channel mappings")

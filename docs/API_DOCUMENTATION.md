@@ -11,6 +11,7 @@ The Studio Revenue Simulator API provides machine learning-powered predictions f
 5. **Lever Management**: Get metadata for all business levers with constraints and implementation guidance
 6. **AI-Powered Insights**: Get strategic business recommendations using GPT-4 (optional)
 7. **Model Explainability**: Understand prediction drivers using SHAP analysis
+8. **Email API**: Send emails with file attachments (up to 10MB) using SendGrid integration
 
 ---
 
@@ -874,6 +875,99 @@ Get detailed information for a specific studio.
   "latest_members": 205
 }
 ```
+
+---
+
+## Email API
+
+### Send Email with Attachment
+
+Send emails with optional file attachments using SendGrid.
+
+#### POST `/api/v1/email/send`
+
+Send an email to one or more recipients with an optional file attachment.
+
+**Request Format:** `multipart/form-data`
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `to` | string | Yes | Comma-separated recipient email addresses |
+| `subject` | string | Yes | Email subject line |
+| `body` | string | Yes | Email body content |
+| `from_email` | string | No | Sender email address |
+| `from_name` | string | No | Sender name |
+| `cc` | string | No | Comma-separated CC email addresses |
+| `bcc` | string | No | Comma-separated BCC email addresses |
+| `is_html` | boolean | No | Whether body is HTML (default: false) |
+| `attachment` | file | No | File attachment (max 10MB) |
+
+**Example Request (Python):**
+```python
+import requests
+
+url = "http://localhost:8000/api/v1/email/send"
+
+data = {
+    "to": "recipient@example.com",
+    "subject": "Revenue Report",
+    "body": "Please find the attached revenue analysis.",
+    "from_email": "reports@studio.com",
+    "from_name": "Studio Analytics"
+}
+
+files = {
+    "attachment": open("revenue_report.pdf", "rb")
+}
+
+response = requests.post(url, data=data, files=files)
+print(response.json())
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Email sent successfully",
+  "message_id": "abc123xyz",
+  "recipients": ["recipient@example.com"]
+}
+```
+
+**Error Responses:**
+- `400`: Validation error (invalid email, missing fields)
+- `413`: File size exceeds 10MB limit
+- `500`: SendGrid API error
+- `503`: Email service not configured
+
+### Get Email Service Status
+
+Check the status and configuration of the email service.
+
+#### GET `/api/v1/email/status`
+
+**Response:**
+```json
+{
+  "service": "SendGrid",
+  "configured": true,
+  "default_from_email": "noreply@example.com",
+  "max_file_size_mb": 10.0
+}
+```
+
+**Setup Instructions:**
+
+To enable email functionality, set the following environment variables:
+
+```bash
+SENDGRID_API_KEY=your_sendgrid_api_key
+SENDGRID_FROM_EMAIL=your_default_sender_email@domain.com
+```
+
+For detailed setup instructions, see [EMAIL_SETUP.md](EMAIL_SETUP.md).
 
 ---
 
