@@ -1,0 +1,90 @@
+{
+  "version": "2.3.0",
+  "best_model": "ridge",
+  "n_features": 20,
+  "selected_features": [
+    "total_revenue",
+    "membership_revenue",
+    "class_pack_revenue",
+    "basic_membership_revenue",
+    "premium_membership_revenue",
+    "unlimited_class_revenue",
+    "personal_training_revenue",
+    "nutrition_coaching_revenue",
+    "wellness_services_revenue",
+    "premium_membership_count",
+    "personal_training_count",
+    "nutrition_coaching_count",
+    "wellness_services_count",
+    "total_members",
+    "staff_count",
+    "prev_month_revenue",
+    "prev_month_members",
+    "3m_avg_revenue",
+    "revenue_momentum",
+    "staff_util_x_members"
+  ],
+  "training_date": "2025-11-08T00:31:53.778110",
+  "phase": "Phase 4 - Monthly Predictions with Daily Seasonality Features",
+  "data_type": "monthly_with_daily_patterns",
+  "has_shap_background": true,
+  "granularity": "monthly",
+  "daily_pattern_features": [
+    "weekend_revenue_pct",
+    "holiday_impact_score",
+    "payday_boost_factor",
+    "weekend_weekday_ratio",
+    "daily_revenue_cv",
+    "weekend_attendance_pct"
+  ],
+  "performance_metrics": {
+    "test_overall": {
+      "overall_rmse": 928.29,
+      "overall_mae": 554.33,
+      "overall_r2": 0.9928,
+      "mape": 0,
+      "accuracy_within_5pct": 0.95,
+      "accuracy_within_10pct": 0.98,
+      "forecast_accuracy": 0.98,
+      "directional_accuracy": 0.99
+    },
+    "test_by_target": {
+      "Revenue Month 1": {
+        "RMSE": 1112.59,
+        "MAE": 848.99,
+        "R2": 0.9792,
+        "MAPE": 4.9
+      },
+      "Revenue Month 2": {
+        "RMSE": 1092.91,
+        "MAE": 848.15,
+        "R2": 0.9791,
+        "MAPE": 5.14
+      },
+      "Revenue Month 3": {
+        "RMSE": 1369.77,
+        "MAE": 1067.86,
+        "R2": 0.9696,
+        "MAPE": 6.07
+      },
+      "Members Month 3": {
+        "RMSE": 7.93,
+        "MAE": 6.63,
+        "R2": 0.9816,
+        "MAPE": 3.69
+      },
+      "Retention Month 3": {
+        "RMSE": 0.03,
+        "MAE": 0.02,
+        "R2": 0.6134,
+        "MAPE": 3.3
+      }
+    },
+    "cv_summary": {
+      "r2_mean": 0.9893512710067455,
+      "r2_std": 0.002528847514401406,
+      "rmse_mean": 847.8172768892271,
+      "rmse_std": 88.24411027477122
+    }
+  }
+}
