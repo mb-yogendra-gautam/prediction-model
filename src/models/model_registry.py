@@ -86,6 +86,42 @@ class ModelRegistry:
             logger.error(f"Error loading model version {version}: {e}")
             raise
 
+    def load_product_correlations(self, version: str = "2.2.0") -> Optional[Dict[str, Any]]:
+        """
+        Load pre-computed product correlation artifacts for a specific version
+
+        Args:
+            version: Model version to load (default: 2.2.0)
+
+        Returns:
+            Dictionary containing product correlation artifacts:
+                - product_lever_correlations: Correlations between products and levers
+                - product_revenue_correlations: Correlations between products and revenue
+                - product_statistics: Statistical summaries for each product
+                - correlation_matrix: Full correlation matrix
+            Returns None if file doesn't exist
+        """
+        logger.info(f"Loading product correlations version {version}")
+
+        try:
+            correlation_path = self.base_dir / f'product_correlations_v{version}.pkl'
+
+            if not correlation_path.exists():
+                logger.warning(f"Product correlation file not found: {correlation_path}")
+                return None
+
+            # Load correlation artifacts
+            artifacts = joblib.load(correlation_path)
+
+            logger.info(f"Successfully loaded product correlations version {version}")
+            logger.info(f"Products analyzed: {len(artifacts.get('product_lever_correlations', {}))}")
+
+            return artifacts
+
+        except Exception as e:
+            logger.error(f"Error loading product correlations version {version}: {e}")
+            return None
+
     def list_available_versions(self):
         """List all available model versions"""
         versions = []

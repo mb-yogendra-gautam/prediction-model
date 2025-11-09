@@ -1079,6 +1079,191 @@ Products with high impact scores should be prioritized for promotion.
 - Recommendations should be validated with A/B testing
 - External factors (seasonality, competition) not included
 
+### **Technical Implementation**
+
+#### **Algorithm: Pearson Correlation Coefficient**
+
+The product correlation model uses **statistical correlation analysis**, not a machine learning algorithm. Specifically, it computes **Pearson's correlation coefficient** between:
+
+- Each product's revenue
+- Business levers (retention_rate, avg_ticket_price, class_attendance_rate, etc.)
+- Revenue targets (revenue_month_1, revenue_month_2, revenue_month_3)
+
+**Formula:**
+
+```
+r = Σ[(x - x̄)(y - ȳ)] / √[Σ(x - x̄)² × Σ(y - ȳ)²]
+```
+
+Where:
+
+- `r` ranges from -1 to +1
+- `+1` = perfect positive correlation (product drives revenue)
+- `-1` = perfect negative correlation (product hurts revenue)
+- `0` = no linear relationship
+
+**Implementation:**
+
+```python
+# From product_service_analyzer.py
+corr = self.training_data[product_col].corr(self.training_data[lever])
+```
+
+This uses pandas' `.corr()` method, which computes Pearson correlation by default.
+
+#### **Loading: Optimized pkl Artifacts**
+
+**Performance Optimization (v2.2.0+):**
+
+The API now loads pre-computed correlation data from `product_correlations_v2.2.0.pkl` instead of recomputing from CSV on every startup:
+
+```python
+# Fast path: Load from pkl (< 0.1s)
+correlation_artifacts = registry.load_product_correlations(version="2.2.0")
+product_service_analyzer = ProductServiceAnalyzer.from_artifacts(correlation_artifacts)
+
+# Fallback: Compute from CSV if pkl not found (~2-5s)
+training_df = pd.read_csv('data/processed/multi_studio_data_engineered.csv')
+product_service_analyzer = ProductServiceAnalyzer(training_data=training_df)
+```
+
+**Startup Time Comparison:**
+
+| Method           | Time   | When Used                  |
+| ---------------- | ------ | -------------------------- |
+| Load from pkl    | ~0.05s | ✅ Default (fast path)     |
+| Compute from CSV | ~2-5s  | ⚠️ Fallback if pkl missing |
+
+**API Startup Logs:**
+
+```
+Loading product correlation artifacts...
+✓ Loaded product correlations from pkl artifact (fast path) - 0.05s
+✓ Product Service Analyzer initialized with 13 products
+```
+
+Or if pkl is missing:
+
+```
+Loading product correlation artifacts...
+⚠ Product correlation pkl not found, computing from CSV (slow path)
+✓ Product Service Analyzer initialized from CSV - 2.34s
+```
+
+#### **Why Correlation, Not ML?**
+
+**Advantages of Statistical Correlation:**
+
+1. **Interpretability**: Direct, transparent relationship measurement
+2. **No Training Required**: Mathematical calculation on historical data
+3. **Fast Computation**: Instant calculation once data is loaded
+4. **No Overfitting Risk**: No model parameters to tune
+5. **Domain-Friendly**: Business stakeholders understand correlation
+
+**When ML Would Be Used:**
+
+Machine learning would be appropriate for:
+
+- Predicting future product sales (time series forecasting)
+- Personalized product recommendations per member
+- Cross-sell probability models
+- Price optimization algorithms
+
+**What We're Actually Doing:**
+
+We're performing **descriptive analytics** (what patterns exist?) not **predictive modeling** (what will happen next?). The correlation analysis describes historical relationships that inform strategic decisions.
+
+#### **Data Source**
+
+**Training Data:**
+
+- 732 studio-months from 12 studios
+- 13 products/services tracked
+- Product revenue and count fields per record
+- Cross-referenced with lever values (retention, pricing, etc.)
+
+**Computed During Training:**
+
+The correlation artifacts are generated during model training:
+
+```bash
+python training/train_model_v2.2_multi_studio.py
+```
+
+This script:
+
+1. Loads training data with product columns
+2. Initializes `ProductServiceAnalyzer` with training data
+3. Computes correlations for all products
+4. Saves to `data/models/product_correlations_v2.2.0.pkl`
+
+**Artifact Contents:**
+
+```python
+{
+    'product_lever_correlations': {
+        'premium_membership_revenue': {
+            'retention_rate': 0.82,
+            'avg_ticket_price': 0.68,
+            'class_attendance_rate': 0.54,
+            ...
+        },
+        ...
+    },
+    'product_revenue_correlations': {
+        'premium_membership_revenue': {
+            'total_revenue': 0.91,
+            'revenue_month_1': 0.89,
+            'revenue_month_2': 0.87,
+            'revenue_month_3': 0.85
+        },
+        ...
+    },
+    'product_statistics': {
+        'premium_membership_revenue': {
+            'mean': 12450.00,
+            'std': 2100.50,
+            'median': 12200.00,
+            'min': 5000.00,
+            'max': 28000.00
+        },
+        ...
+    }
+}
+```
+
+#### **Regenerating Correlation Artifacts**
+
+To recompute correlations (e.g., after adding new training data):
+
+```bash
+# Retrain model (includes correlation analysis)
+python training/train_model_v2.2_multi_studio.py
+```
+
+The training script automatically:
+
+1. Analyzes product correlations
+2. Saves artifacts to pkl file
+3. Logs completion: `[OK] Product correlation analysis complete`
+
+**Manual Regeneration (if needed):**
+
+```python
+from src.api.services.product_service_analyzer import ProductServiceAnalyzer
+import pandas as pd
+
+# Load training data
+df = pd.read_csv('data/processed/multi_studio_data_engineered.csv')
+train_df = df[df['split'] == 'train'].copy()
+
+# Compute correlations
+analyzer = ProductServiceAnalyzer(training_data=train_df)
+
+# Save artifacts
+analyzer.save_correlation_artifacts('data/models/product_correlations_v2.2.0.pkl')
+```
+
 ---
 
 ## 🔍 Model Explainability & Interpretability
