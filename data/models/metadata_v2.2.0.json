@@ -1,0 +1,26 @@
+{
+  "version": "2.2.0",
+  "best_model": "ridge",
+  "n_features": 15,
+  "selected_features": [
+    "total_revenue",
+    "membership_revenue",
+    "class_pack_revenue",
+    "basic_membership_revenue",
+    "premium_membership_revenue",
+    "unlimited_class_revenue",
+    "personal_training_count",
+    "personal_training_revenue",
+    "nutrition_coaching_count",
+    "nutrition_coaching_revenue",
+    "wellness_services_count",
+    "wellness_services_revenue",
+    "prev_month_revenue",
+    "3m_avg_revenue",
+    "revenue_momentum"
+  ],
+  "training_date": "2025-11-08T00:57:22.410136",
+  "phase": "Phase 3 - Multi-Studio Data",
+  "data_type": "multi_studio",
+  "has_shap_background": true
+}

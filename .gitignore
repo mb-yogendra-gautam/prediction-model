@@ -48,7 +48,6 @@ data/raw/*
 !data/raw/.gitkeep
 data/processed/*
 !data/processed/.gitkeep
-data/models/*
 !data/models/.gitkeep
 
 # Logs
@@ -93,7 +92,6 @@ Thumbs.db
 *.bak
 
 # Model artifacts (if too large)
-*.pkl
 *.joblib
 *.h5
 *.pt

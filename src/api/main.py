@@ -103,15 +103,33 @@ async def lifespan(app: FastAPI):
         product_service_analyzer = None
         try:
             logger.info("Loading product correlation artifacts...")
-            # Load training data with product columns
-            training_data_path = "data/processed/multi_studio_data_engineered.csv"
-            training_df = pd.read_csv(training_data_path)
-            training_df = training_df[training_df['split'] == 'train'].copy()
             
-            # Initialize analyzer with training data
-            product_service_analyzer = ProductServiceAnalyzer(training_data=training_df)
+            # Try to load from pre-computed pkl first (fast path)
+            correlation_artifacts = registry.load_product_correlations(version="2.2.0")
+            
+            if correlation_artifacts:
+                # Fast path: Load from pkl
+                import time
+                start_time = time.time()
+                product_service_analyzer = ProductServiceAnalyzer.from_artifacts(correlation_artifacts)
+                load_time = time.time() - start_time
+                logger.info(f"✓ Loaded product correlations from pkl artifact (fast path) - {load_time:.2f}s")
+                logger.info(f"✓ Product Service Analyzer initialized with {len(correlation_artifacts.get('product_lever_correlations', {}))} products")
+            else:
+                # Fallback: Compute from CSV (slow path)
+                logger.warning("⚠ Product correlation pkl not found, computing from CSV (slow path)")
+                import time
+                start_time = time.time()
+                
+                training_data_path = "data/processed/multi_studio_data_engineered.csv"
+                training_df = pd.read_csv(training_data_path)
+                training_df = training_df[training_df['split'] == 'train'].copy()
+                
+                product_service_analyzer = ProductServiceAnalyzer(training_data=training_df)
+                load_time = time.time() - start_time
+                logger.info(f"✓ Product Service Analyzer initialized from CSV - {load_time:.2f}s")
+            
             app_state['product_service_analyzer'] = product_service_analyzer
-            logger.info("✓ Product Service Analyzer initialized")
         except Exception as e:
             logger.warning(f"Product Service Analyzer initialization failed: {e}")
             logger.warning("Product recommendations will not be available")
