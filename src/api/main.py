@@ -17,7 +17,8 @@ from src.api.services.counterfactual_service import CounterfactualService
 from src.api.services.ai_insights_service import AIInsightsService
 from src.api.services.product_service_analyzer import ProductServiceAnalyzer
 from src.api.services.slack_service import SlackService
-from src.api.routes import predictions, notifications
+from src.api.services.email_service import EmailService
+from src.api.routes import predictions, notifications, emails
 from src.api.schemas.responses import HealthCheckResponse
 from src.utils.response_formatter import round_numeric_values
 import pandas as pd
@@ -163,6 +164,17 @@ async def lifespan(app: FastAPI):
             logger.warning("Slack notifications will not be available. Set SLACK_BOT_TOKEN environment variable to enable.")
             app_state['slack_service'] = None
         
+        # Email service (optional - will warn if API key not available)
+        try:
+            email_service = EmailService()
+            app_state['email_service'] = email_service
+            emails.set_email_service(email_service)
+            logger.info("✓ Email service initialized")
+        except ValueError as e:
+            logger.warning(f"Email service initialization failed: {e}")
+            logger.warning("Email functionality will not be available. Set SENDGRID_API_KEY environment variable to enable.")
+            app_state['email_service'] = None
+        
         logger.info("=" * 60)
         logger.info("API startup complete! Server ready to accept requests.")
         logger.info("=" * 60)
@@ -208,6 +220,12 @@ app.include_router(
     notifications.router,
     prefix="/api/v1/notifications/slack",
     tags=["Notifications"]
+)
+
+app.include_router(
+    emails.router,
+    prefix="/api/v1/email",
+    tags=["Email"]
 )
 
 
